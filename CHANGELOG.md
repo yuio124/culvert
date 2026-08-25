@@ -12,6 +12,7 @@
 - The plugin registry (~/.claude/plugins/installed_plugins.json) is treated as
   best-effort: if missing or unreadable, registry checks are skipped with a
   NOTE and status keeps working.
+- No changes to the classifier, routing, policy defaults, or the RESULT validator.
 
 ## 0.2.3 (rc3, unreleased)
 

@@ -122,7 +122,7 @@ def _same_role_install(install_path):
 
 
 def settings_hook_wiring():
-    """Governor-style hooks wired directly in project settings (double gating)."""
+    """Predecessor-style hooks wired directly in project settings (double gating)."""
     hits = []
     for name in ("settings.json", "settings.local.json"):
         raw = read(os.path.join(project_root(), ".claude", name))
@@ -165,7 +165,7 @@ def conflict_findings():
         notes.append("plugin registry unavailable — registry-based checks skipped")
 
     for hit in settings_hook_wiring():
-        warnings.append(f"governor-style hooks wired directly in project settings ({hit})")
+        warnings.append(f"predecessor-style hooks wired directly in project settings ({hit})")
 
     if os.path.isfile(os.path.join(project_root(), ".claude", "agents", "context-worker.md")):
         notes.append("project-level .claude/agents/context-worker.md exists — "

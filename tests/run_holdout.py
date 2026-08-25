@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Holdout runner — checks the gate against holdout_v022.json.
 
-The holdout labels were fixed before the v0.2.2 classifier rules were written,
+The holdout labels for each group were fixed before the corresponding rule change was written,
 and none of the commands duplicate the development test prompts.
 
 Confusion matrix: a deny:* label counts as positive. A case PASSes only when the
