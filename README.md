@@ -110,6 +110,19 @@ python3 tests/run_cases.py    # hook decisions vs expected (26 cases)
 python3 tests/test_v021.py    # override/fail-safe/status acceptance (30 checks)
 ```
 
+## Acknowledgements
+
+CULVERT was developed through an iterative human–AI engineering workflow.
+Taewoong Hwang defined the problem, set the experimental direction and
+hypotheses, and made the final design decisions. ChatGPT assisted with
+experiment design, structuring hypotheses, analysis, and drafting work
+instructions for other agents; Claude and Claude Code assisted with
+implementation, repository-level investigation, testing, instrumentation,
+and clean-room verification.
+
+AI tools were used as collaborators in the development process; authorship,
+copyright, and maintenance responsibility remain with Taewoong Hwang.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Changes in [CHANGELOG.md](CHANGELOG.md).
