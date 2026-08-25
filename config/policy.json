@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "max_command_length": 500,
+  "max_inline_code_length": 200,
+  "max_read_bytes": 204800,
+  "max_result_bytes": 8192,
+  "rules": {
+    "heredoc": true,
+    "long_inline_python": true,
+    "db_query": true,
+    "test_run": true,
+    "recursive_search": true,
+    "long_command": true,
+    "big_file_dump": true,
+    "big_read": true,
+    "worker_teammate_spawn": true,
+    "fan_out_read": true,
+    "bounded_output_exemption": true
+  }
+}

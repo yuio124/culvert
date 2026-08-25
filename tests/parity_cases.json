@@ -1,0 +1,261 @@
+{
+  "_comment": "hook 단위 parity 케이스. expected_diff=true 는 이름공간 적응으로 판정이 다른 것이 정상인 케이스 (원본은 plugin 이름공간을 모른다).",
+  "pretooluse": [
+    {
+      "id": "A1-heavy-sqlite",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "sqlite3 data/x.db 'SELECT count(*) FROM t'"
+        }
+      },
+      "expect": "allow",
+      "note": "RC2: scalar COUNT 는 bounded-output 면제 — v0.2.1 까지는 deny 였다"
+    },
+    {
+      "id": "A2-heredoc",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "cat > /tmp/x.py <<EOF\nprint(1)\nEOF"
+        }
+      },
+      "expect": "deny:heredoc"
+    },
+    {
+      "id": "A3-pytest",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "pytest -q -m 'not live'"
+        }
+      },
+      "expect": "deny:test-run"
+    },
+    {
+      "id": "A4-grep-r",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "grep -rn handler server/"
+        }
+      },
+      "expect": "deny:recursive-search"
+    },
+    {
+      "id": "A5-rg",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "rg handler"
+        }
+      },
+      "expect": "deny:recursive-search"
+    },
+    {
+      "id": "A6-find-dir",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "find docs -name '*.md'"
+        },
+        "cwd": "__TMP__"
+      },
+      "expect": "deny:recursive-search"
+    },
+    {
+      "id": "A7-long-command",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "__LONG600__"
+        }
+      },
+      "expect": "deny:long-command"
+    },
+    {
+      "id": "A8-big-cat",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "cat __BIGFILE__"
+        }
+      },
+      "expect": "deny:big-file-dump"
+    },
+    {
+      "id": "A9-light-ls",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "ls -la docs"
+        }
+      },
+      "expect": "allow"
+    },
+    {
+      "id": "A10-override",
+      "in": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "GOVERNOR_OVERRIDE=\"test\" sqlite3 x.db 'SELECT 1'"
+        }
+      },
+      "expect": "allow"
+    },
+    {
+      "id": "B1-big-read",
+      "in": {
+        "tool_name": "Read",
+        "tool_input": {
+          "file_path": "__BIGFILE__"
+        }
+      },
+      "expect": "deny:big-read"
+    },
+    {
+      "id": "B2-read-limit",
+      "in": {
+        "tool_name": "Read",
+        "tool_input": {
+          "file_path": "__BIGFILE__",
+          "limit": 100
+        }
+      },
+      "expect": "allow"
+    },
+    {
+      "id": "C1-worker-name",
+      "in": {
+        "tool_name": "Agent",
+        "tool_input": {
+          "subagent_type": "context-worker",
+          "name": "w1",
+          "prompt": "x",
+          "description": "x"
+        }
+      },
+      "expect": "deny:worker-teammate-spawn"
+    },
+    {
+      "id": "C2-worker-ns-name",
+      "in": {
+        "tool_name": "Agent",
+        "tool_input": {
+          "subagent_type": "context-governor:context-worker",
+          "name": "w1",
+          "prompt": "x",
+          "description": "x"
+        }
+      },
+      "expect": "deny:worker-teammate-spawn",
+      "expected_diff": true
+    },
+    {
+      "id": "D1-worker-regular",
+      "in": {
+        "tool_name": "Agent",
+        "tool_input": {
+          "subagent_type": "context-worker",
+          "prompt": "x",
+          "description": "x"
+        }
+      },
+      "expect": "allow"
+    },
+    {
+      "id": "F1-subagent-exempt",
+      "in": {
+        "agent_id": "a123",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "sqlite3 x.db 'SELECT 1'"
+        }
+      },
+      "expect": "allow"
+    }
+  ],
+  "subagentstop": [
+    {
+      "id": "G1-oversize",
+      "in": {
+        "agent_type": "context-worker",
+        "last_assistant_message": "RESULT\nstatus: SUCCESS\n__PAD9K__"
+      },
+      "expect": "block"
+    },
+    {
+      "id": "G2-no-schema",
+      "in": {
+        "agent_type": "context-worker",
+        "last_assistant_message": "done, everything fine"
+      },
+      "expect": "block"
+    },
+    {
+      "id": "G3-ns-oversize",
+      "in": {
+        "agent_type": "context-governor:context-worker",
+        "last_assistant_message": "RESULT\nstatus: SUCCESS\n__PAD9K__"
+      },
+      "expect": "block",
+      "expected_diff": true
+    },
+    {
+      "id": "H1-good-result",
+      "in": {
+        "agent_type": "context-worker",
+        "last_assistant_message": "RESULT\nstatus: SUCCESS\nconclusion: ok"
+      },
+      "expect": "approve"
+    },
+    {
+      "id": "H2-loop-guard",
+      "in": {
+        "agent_type": "context-worker",
+        "stop_hook_active": true,
+        "last_assistant_message": "RESULT\nstatus: SUCCESS\n__PAD9K__"
+      },
+      "expect": "approve"
+    },
+    {
+      "id": "H3-other-agent",
+      "in": {
+        "agent_type": "Explore",
+        "last_assistant_message": "__PAD9K__"
+      },
+      "expect": "approve"
+    }
+  ],
+  "sessionstart": [
+    {
+      "id": "I1-startup",
+      "in": {
+        "source": "startup"
+      },
+      "expect": "inject"
+    },
+    {
+      "id": "I2-clear",
+      "in": {
+        "source": "clear"
+      },
+      "expect": "inject"
+    },
+    {
+      "id": "J1-compact",
+      "in": {
+        "source": "compact"
+      },
+      "expect": "inject"
+    },
+    {
+      "id": "J2-subagent",
+      "in": {
+        "source": "startup",
+        "agent_id": "a1"
+      },
+      "expect": "silent"
+    }
+  ]
+}
