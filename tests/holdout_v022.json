@@ -164,5 +164,43 @@
       "cmd": "sed -n '1,40p' server.py",
       "expect": "allow"
     }
+  ],
+  "long_command_v023": [
+    {
+      "id": "L1",
+      "cmd": "for f in a/plugin.json b/plugin.json c/plugin.json; do jq -r .version \"$f\" | head -8; done && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad && echo pad",
+      "expect": "allow",
+      "note": "~700 chars, every risky segment head-capped - bounded beats length"
+    },
+    {
+      "id": "L2",
+      "cmd": "python3 tools/report.py --input data.bin --mode full --verbose --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding --flag-opt-value-padding ",
+      "expect": "deny:long-command",
+      "note": ">1200 chars and output statically unknown"
+    },
+    {
+      "id": "L3",
+      "cmd": "grep -rn pattern .",
+      "expect": "deny:recursive-search",
+      "note": "short but recursive output risk - unchanged"
+    },
+    {
+      "id": "L4",
+      "cmd": "cat > /tmp/x.py <<EOF\nprint(1)\nEOF",
+      "expect": "deny:heredoc",
+      "note": "heredoc unchanged in v0.2.3"
+    },
+    {
+      "id": "L5",
+      "cmd": "grep -c token0 app.log && grep -c token1 app.log && grep -c token2 app.log && grep -c token3 app.log && grep -c token4 app.log && grep -c token5 app.log && grep -c token6 app.log && grep -c token7 app.log && grep -c token8 app.log && grep -c token9 app.log && grep -c token10 app.log && grep -c token11 app.log && grep -c token12 app.log && grep -c token13 app.log && grep -c token14 app.log && grep -c token15 app.log && grep -c token16 app.log && grep -c token17 app.log && grep -c token18 app.log && grep -c token19 app.log && grep -c token20 app.log && grep -c token21 app.log && grep -c token22 app.log && grep -c token23 app.log && grep -c token24 app.log && grep -c token25 app.log && grep -c token26 app.log && grep -c token27 app.log && grep -c token28 app.log && grep -c token29 app.log && grep -c token30 app.log && grep -c token31 app.log && grep -c token32 app.log && grep -c token33 app.log && grep -c token34 app.log && grep -c token35 app.log && grep -c token36 app.log && grep -c token37 app.log && grep -c token38 app.log && grep -c token39 app.log && grep -c token40 app.log && grep -c token41 app.log && grep -c token42 app.log && grep -c token43 app.log && grep -c token44 app.log && grep -c token45 app.log && grep -c token46 app.log && grep -c token47 app.log",
+      "expect": "allow",
+      "note": ">1200 chars but every segment is a bounded grep -c"
+    },
+    {
+      "id": "L6",
+      "cmd": "python3 tools/report.py --input data.bin --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name --some-longer-option-name ",
+      "expect": "allow",
+      "note": "~700 chars opaque output - below the raised 1200 threshold"
+    }
   ]
 }
