@@ -114,7 +114,7 @@ def main():
     after = os.path.getsize(os.path.join(d, "events.jsonl"))
     check("F1 status leaves the log unchanged", before == after)
     for label in ("CULVERT enabled", "Plugin version", "Worker type", "Worker model",
-                  "Policy source", "Event log", "Duplicate hooks", "Recent decisions"):
+                  "Policy source", "Event log", "Conflicting installs", "Recent decisions"):
         check(f"G {label}", label in out)
     check("G warning surfaced", "unknown-policy-key" in out)
 

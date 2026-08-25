@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.4 (unreleased)
+
+- `/culvert:status` now detects conflicting installs instead of only grepping
+  project settings for hook script names: enabledPlugins merged across
+  user/project/local scopes, the known predecessor plugin (context-governor),
+  structurally same-role plugins (ship a context-worker agent or the same gate
+  scripts), project-level context-worker.md, legacy state dirs, and shadow
+  skills-dir copies. Hook execution order is not guessed — findings are
+  reported as potential conflicts; nothing is disabled or deleted.
+- The plugin registry (~/.claude/plugins/installed_plugins.json) is treated as
+  best-effort: if missing or unreadable, registry checks are skipped with a
+  NOTE and status keeps working.
+
 ## 0.2.3 (rc3, unreleased)
 
 - long-command is no longer a standalone argument-length rule. Measured on real
