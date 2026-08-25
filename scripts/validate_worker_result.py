@@ -1,8 +1,10 @@
-"""Context Governor plugin — SubagentStop validator (context-worker 전용). v0.1.1 이식판.
+"""Context Governor — SubagentStop validator (context-worker only).
 
-.claude/hooks/validate_worker_result.py 와 로직 동일. 차이는 worker 이름 매칭뿐 —
-plugin 제공 agent 는 agent_type 이 "<plugin>:context-worker" 로 올 수 있다(is_context_worker).
-출력 스키마는 2.1.243 실측: {"decision": "block", "reason": "..."}.
+Keeps the worker from leaking raw logs into the primary context:
+- last_assistant_message over max_result_bytes (default 8KB) -> block (ask to rewrite)
+- missing RESULT / status: schema -> block (with schema hint)
+- stop_hook_active=true -> never block (loop guard) — log the violation and pass
+Output schema: {"decision": "block", "reason": "..."}.
 """
 import json
 import os
@@ -40,7 +42,7 @@ def main():
         return
     agent_type = data.get("agent_type") or ""
     if not is_context_worker(agent_type):
-        return  # 다른 subagent(Explore·cs-report-opus 등)에는 개입하지 않는다
+        return  # do not interfere with other subagents
     msg = data.get("last_assistant_message")
     if msg is None:
         log_event(agent=agent_type, tool="SubagentStop", decision="approve",
@@ -52,7 +54,7 @@ def main():
                   result_bytes=len(msg.encode("utf-8")))
         return
     if data.get("stop_hook_active"):
-        # 이미 한 번 block 된 뒤다 — 루프 방지, 통과시키되 위반을 기록
+        # already blocked once — avoid loops: pass, but record the violation
         log_event(agent=agent_type, tool="SubagentStop", decision="approve",
                   rule="loop-guard", violation="; ".join(v))
         return

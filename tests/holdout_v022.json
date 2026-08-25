@@ -1,41 +1,168 @@
 {
-  "_comment": "RC2 holdout — 라벨은 2026-08-25 규칙 수정 «전에» 고정·커밋했다. 기존 베타 명령 원문과 중복 없음. expect: allow | deny:<rule>",
+  "_comment": "v0.2.2 holdout. Labels were fixed BEFORE the classifier rules were written (2026-08-25) and do not duplicate any development test command. expect: allow | deny:<rule>",
   "bounded_variants": [
-    {"id": "H1", "cmd": "sqlite3 events.db \"SELECT COUNT(*) FROM logs WHERE level='ERROR'\"", "expect": "allow"},
-    {"id": "H2", "cmd": "sqlite3 events.db \"SELECT avg(length(message)) FROM logs\"", "expect": "allow"},
-    {"id": "H3", "cmd": "sqlite3 events.db \"SELECT * FROM logs LIMIT 5\"", "expect": "deny:db-query", "note": "정적으로 scalar 아님 — 보수적 deny"},
-    {"id": "H4", "cmd": "sqlite3 events.db \"SELECT service, COUNT(*) FROM logs GROUP BY service\"", "expect": "deny:db-query", "note": "GROUP BY 행수 정적 미상"},
-    {"id": "H5", "cmd": "find . -name '*.py' | wc -l", "expect": "allow"},
-    {"id": "H6", "cmd": "grep -rn \"token\" . | head -30", "expect": "allow"},
-    {"id": "H7", "cmd": "grep -rn \"token\" . | head -500", "expect": "deny:recursive-search", "note": "캡 100줄 초과"},
-    {"id": "H8", "cmd": "rg handler | tail -20", "expect": "allow"},
-    {"id": "H9", "cmd": "cat __BIGFILE__ | head -50", "expect": "allow"},
-    {"id": "H10", "cmd": "wc -l app.log", "expect": "allow"}
+    {
+      "id": "H1",
+      "cmd": "sqlite3 events.db \"SELECT COUNT(*) FROM logs WHERE level='ERROR'\"",
+      "expect": "allow"
+    },
+    {
+      "id": "H2",
+      "cmd": "sqlite3 events.db \"SELECT avg(length(message)) FROM logs\"",
+      "expect": "allow"
+    },
+    {
+      "id": "H3",
+      "cmd": "sqlite3 events.db \"SELECT * FROM logs LIMIT 5\"",
+      "expect": "deny:db-query",
+      "note": "not statically scalar - conservative deny"
+    },
+    {
+      "id": "H4",
+      "cmd": "sqlite3 events.db \"SELECT service, COUNT(*) FROM logs GROUP BY service\"",
+      "expect": "deny:db-query",
+      "note": "GROUP BY row count is statically unknown"
+    },
+    {
+      "id": "H5",
+      "cmd": "find . -name '*.py' | wc -l",
+      "expect": "allow"
+    },
+    {
+      "id": "H6",
+      "cmd": "grep -rn \"token\" . | head -30",
+      "expect": "allow"
+    },
+    {
+      "id": "H7",
+      "cmd": "grep -rn \"token\" . | head -500",
+      "expect": "deny:recursive-search",
+      "note": "cap exceeds the 100-line bound"
+    },
+    {
+      "id": "H8",
+      "cmd": "rg handler | tail -20",
+      "expect": "allow"
+    },
+    {
+      "id": "H9",
+      "cmd": "cat __BIGFILE__ | head -50",
+      "expect": "allow"
+    },
+    {
+      "id": "H10",
+      "cmd": "wc -l app.log",
+      "expect": "allow"
+    }
   ],
   "node_test_variants": [
-    {"id": "H11", "cmd": "npm test", "expect": "deny:test-run"},
-    {"id": "H12", "cmd": "npm run test 2>&1 | tail -25", "expect": "deny:test-run", "note": "test_run 은 bounded 면제 비적용(보수)"},
-    {"id": "H13", "cmd": "node --test test/unit/", "expect": "deny:test-run"},
-    {"id": "H14", "cmd": "npx vitest run", "expect": "deny:test-run"},
-    {"id": "H15", "cmd": "pnpm test", "expect": "deny:test-run"},
-    {"id": "H16", "cmd": "yarn test --silent", "expect": "deny:test-run"},
-    {"id": "H17", "cmd": "npm run build", "expect": "allow", "note": "build 는 범위 밖 — 문서 명시"},
-    {"id": "H18", "cmd": "npm install", "expect": "allow"}
+    {
+      "id": "H11",
+      "cmd": "npm test",
+      "expect": "deny:test-run"
+    },
+    {
+      "id": "H12",
+      "cmd": "npm run test 2>&1 | tail -25",
+      "expect": "deny:test-run",
+      "note": "test_run is never bounded-exempt (conservative)"
+    },
+    {
+      "id": "H13",
+      "cmd": "node --test test/unit/",
+      "expect": "deny:test-run"
+    },
+    {
+      "id": "H14",
+      "cmd": "npx vitest run",
+      "expect": "deny:test-run"
+    },
+    {
+      "id": "H15",
+      "cmd": "pnpm test",
+      "expect": "deny:test-run"
+    },
+    {
+      "id": "H16",
+      "cmd": "yarn test --silent",
+      "expect": "deny:test-run"
+    },
+    {
+      "id": "H17",
+      "cmd": "npm run build",
+      "expect": "allow",
+      "note": "build is out of scope - documented"
+    },
+    {
+      "id": "H18",
+      "cmd": "npm install",
+      "expect": "allow"
+    }
   ],
   "fan_out_variants": [
-    {"id": "H19", "cmd": "for f in src/*.js; do echo $f; cat \"$f\"; done", "expect": "deny:fan-out-read"},
-    {"id": "H20", "cmd": "cat src/*.js", "expect": "deny:fan-out-read"},
-    {"id": "H21", "cmd": "find . -name '*.md' -exec cat {} \\;", "expect": "deny:fan-out-read"},
-    {"id": "H22", "cmd": "find src -type f | xargs cat", "expect": "deny:fan-out-read"},
-    {"id": "H23", "cmd": "cat src/*.js | wc -l", "expect": "allow", "note": "최종 wc scalar"},
-    {"id": "H24", "cmd": "cat README.md", "expect": "allow", "note": "단일 소형 파일"}
+    {
+      "id": "H19",
+      "cmd": "for f in src/*.js; do echo $f; cat \"$f\"; done",
+      "expect": "deny:fan-out-read"
+    },
+    {
+      "id": "H20",
+      "cmd": "cat src/*.js",
+      "expect": "deny:fan-out-read"
+    },
+    {
+      "id": "H21",
+      "cmd": "find . -name '*.md' -exec cat {} \\;",
+      "expect": "deny:fan-out-read"
+    },
+    {
+      "id": "H22",
+      "cmd": "find src -type f | xargs cat",
+      "expect": "deny:fan-out-read"
+    },
+    {
+      "id": "H23",
+      "cmd": "cat src/*.js | wc -l",
+      "expect": "allow",
+      "note": "final stage is scalar wc"
+    },
+    {
+      "id": "H24",
+      "cmd": "cat README.md",
+      "expect": "allow",
+      "note": "single small file"
+    }
   ],
   "light_commands": [
-    {"id": "H25", "cmd": "ls -la src", "expect": "allow"},
-    {"id": "H26", "cmd": "git status --short", "expect": "allow"},
-    {"id": "H27", "cmd": "python3 scripts/check.py", "expect": "allow"},
-    {"id": "H28", "cmd": "grep -n \"def main\" app.py", "expect": "allow"},
-    {"id": "H29", "cmd": "echo hello && date", "expect": "allow"},
-    {"id": "H30", "cmd": "sed -n '1,40p' server.py", "expect": "allow"}
+    {
+      "id": "H25",
+      "cmd": "ls -la src",
+      "expect": "allow"
+    },
+    {
+      "id": "H26",
+      "cmd": "git status --short",
+      "expect": "allow"
+    },
+    {
+      "id": "H27",
+      "cmd": "python3 scripts/check.py",
+      "expect": "allow"
+    },
+    {
+      "id": "H28",
+      "cmd": "grep -n \"def main\" app.py",
+      "expect": "allow"
+    },
+    {
+      "id": "H29",
+      "cmd": "echo hello && date",
+      "expect": "allow"
+    },
+    {
+      "id": "H30",
+      "cmd": "sed -n '1,40p' server.py",
+      "expect": "allow"
+    }
   ]
 }

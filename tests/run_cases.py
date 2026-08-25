@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Standalone hook 판정 테스트 — parity_cases.json 의 기대값과 이 plugin 의 실판정을 대조.
+"""Hook decision tests — feed each case in parity_cases.json to the gate scripts
+and compare against the expected label.
 
-(원 프로젝트의 run_parity.py 는 legacy 구현과의 비교라 legacy 저장소가 필요했다.
-standalone 에서는 기대값 대조만 남긴다 — 케이스 데이터는 동일.)
-사용: python3 tests/run_cases.py
+Usage: python3 tests/run_cases.py
 """
 import json
 import os
@@ -54,7 +53,7 @@ def main():
     tmp = tempfile.mkdtemp(prefix="governor-cases-")
     big = os.path.join(tmp, "big.txt")
     open(big, "w").write("x" * 300000)
-    os.makedirs(os.path.join(tmp, "docs"), exist_ok=True)  # find-dir 규칙은 cwd 기준 실재 디렉터리를 본다
+    os.makedirs(os.path.join(tmp, "docs"), exist_ok=True)  # the find-dir rule checks a real directory under cwd
     subst = {"__BIGFILE__": big, "__PAD9K__": "y" * 9000,
              "__LONG600__": "echo " + "z" * 600, "__TMP__": tmp}
 

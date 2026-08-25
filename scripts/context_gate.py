@@ -1,21 +1,25 @@
-"""Context Governor — PreToolUse gate (Bash|Read|Agent). v0.2.2 (RC2).
+"""Context Governor — PreToolUse gate (Bash|Read|Agent). v0.2.2.
 
-판정 기준(명문화): "computationally heavy" 가 아니라
-**「Primary context 에 큰 tool argument / tool result 를 남길 위험」**이다.
+Criterion (explicit): not "computationally heavy" but
+**"risk of leaving large tool arguments/results in the primary context"**.
 
-평가 순서 (classify_bash):
-  ① 인자 크기 규칙 — heredoc · long-inline-python · long-command. 출력을 캡해도
-     인자 자체가 컨텍스트에 실리므로 bounded 면제 대상이 아니다.
-  ② test-run — Python(pytest/unittest) + Node(npm/pnpm/yarn test·node --test·npx jest/vitest).
-     보수적으로 bounded 면제 비적용(스위트 출력·소요는 정적 예측 불가). Go/Cargo/.NET 등은
-     아직 범위 밖 — README 에 명시.
-  ③ bounded-output 면제 — 세그먼트(&&·;·개행 분리)마다 최종 출력이 정적으로 작음이
-     명백하면(head/tail ≤100줄·head -c ≤10KB·wc·비재귀 grep -c·scalar 집계 sqlite) 그
-     세그먼트는 출력 규칙을 건너뛴다.
-  ④ 출력 크기 규칙 — db-query · recursive-search · fan-out-read · big-file-dump.
-     fan-out(for…cat·cat <glob>·find -exec cat·xargs cat)은 전체 명령 기준으로도 본다.
+Evaluation order (classify_bash):
+  1. Argument-size rules — heredoc, long inline python, long command. Capping the
+     output does not help: the argument itself lands in the context, so these are
+     never exempted.
+  2. test-run — Python (pytest/unittest) + Node (npm/pnpm/yarn test, node --test,
+     npx jest/vitest). Conservatively never exempted (suite output and duration
+     are not statically predictable). Other ecosystems (Go/Cargo/.NET) are out of
+     scope for now — see README.
+  3. Bounded-output exemption — per segment (split on && ; newline): if the final
+     output is statically known to be small (head/tail <=100 lines, head -c
+     <=10KB, wc, non-recursive grep -c, scalar aggregate sqlite), skip the
+     output-size rules for that segment.
+  4. Output-size rules — db-query, recursive-search, fan-out-read, big-file-dump.
+     Fan-out patterns that span segments (for..cat, find -exec cat, xargs cat)
+     are also checked against the whole command.
 
-스크립트 오류는 fail-open(exit 0). worker 이름 매칭은 _governor.is_context_worker.
+Script errors fail open (exit 0). Worker name matching: _governor.is_context_worker.
 """
 import json
 import os
@@ -27,11 +31,11 @@ from _governor import is_context_worker, load_policy, log_event, rule_on
 
 OVERRIDE_RE = re.compile(r'^\s*GOVERNOR_OVERRIDE=("([^"]+)"|\'([^\']+)\'|(\S+))\s+')
 
-# ① 인자 크기
+# 1. argument size
 HEREDOC_RE = re.compile(r"(?<!<)<<(?!<)-?\s*['\"]?[A-Za-z_]")
 INLINE_PY_RE = re.compile(r"\bpython3?\b[^\n|;&]{0,120}\s-c\b|\buv\s+run\b[^\n|;&]{0,120}\s-c\b")
 
-# ② 테스트 러너 (Python + Node — 지원 범위는 이 둘뿐)
+# 2. test runners (Python + Node — the supported scope)
 TEST_RE = re.compile(
     r"(?:^|[\s;&|])(?:\S*/)?pytest(?=\s|$)"
     r"|\bpython3?\s+-m\s+(pytest|unittest)\b"
@@ -40,7 +44,7 @@ TEST_RE = re.compile(
     r"|\bnpx\s+(?:jest|vitest)\b"
 )
 
-# ④ 출력 크기
+# 4. output size
 SQLITE_RE = re.compile(r"\bsqlite3\b")
 DB_FILE_RE = re.compile(r"\S+\.db\b")
 DB_QUERYISH_RE = re.compile(r"\b(select|SELECT|insert|INSERT|connect|cursor|PRAGMA|pragma)\b")
@@ -48,13 +52,13 @@ GREP_R_RE = re.compile(r"\bz?grep\b[^\n|;&]*\s-[A-Za-z]*[rR]")
 RG_RE = re.compile(r"\brg\b")
 FIND_RE = re.compile(r"\bfind\b\s+(\S+)")
 CAT_RE = re.compile(r"^\s*cat\s+((?:-\S+\s+)*)([^|;&<>]+?)\s*$")
-# fan-out read — 여러 파일 내용을 Primary 로 쏟는 셸 패턴
+# fan-out read — shell patterns that pour many file contents into the primary context
 FANOUT_FOR_CAT_RE = re.compile(r"\bfor\b[^\n]*?\bdo\b[^\n]*?\bcat\b", re.S)
 FANOUT_FIND_EXEC_RE = re.compile(r"\bfind\b[^\n]*?-exec\s+cat\b")
 FANOUT_XARGS_RE = re.compile(r"\bxargs\s+(?:-\S+\s+)*cat\b")
 FANOUT_CAT_GLOB_RE = re.compile(r"(?:^|[;&|]\s*)cat\s+(?:-\S+\s+)*[^|;&<>]*[*?]")
 
-# ③ bounded-output — 정적으로 출력이 작음이 명백한 꼴만
+# 3. bounded output — only shapes whose small output is statically certain
 SEG_SPLIT_RE = re.compile(r"&&|\|\||;|\n")
 CAP_LINES_RE = re.compile(r"\|\s*(?:head|tail)\s+(?:-n\s*)?-?(\d+)\s*$")
 CAP_BYTES_RE = re.compile(r"\|\s*head\s+-c\s*(\d+)\s*$")
@@ -68,7 +72,10 @@ BOUNDED_MAX_BYTES = 10240
 
 
 def _sqlite_scalar(seg):
-    """모든 SELECT 목록이 집계함수뿐이고 GROUP BY 가 없으면 scalar — 정적 확신이 없으면 False."""
+    """Scalar iff every SELECT list is aggregates only and there is no GROUP BY.
+
+    Anything not statically certain is treated as non-exempt.
+    """
     if not SQLITE_RE.search(seg):
         return False
     low = seg.lower()
@@ -76,7 +83,7 @@ def _sqlite_scalar(seg):
         return False
     lists = SQL_SELECT_LIST_RE.findall(low)
     if not lists:
-        return False  # SELECT 목록을 못 읽으면 보수적으로 비면제
+        return False  # cannot read the SELECT list -> stay conservative
     for lst in lists:
         for part in lst.split(","):
             if not SQL_AGG_RE.match(part):
@@ -101,7 +108,7 @@ def _bounded(seg):
 
 
 def _output_rule(seg, policy, cwd):
-    """세그먼트 하나에 대한 출력 크기 규칙 판정."""
+    """Output-size rule verdict for a single segment."""
     if rule_on(policy, "db_query"):
         if SQLITE_RE.search(seg):
             return "db-query"
@@ -129,8 +136,8 @@ def _output_rule(seg, policy, cwd):
 
 
 def classify_bash(cmd, policy, cwd):
-    """히트한 규칙명을 돌려준다. 없으면 None. 순서는 모듈 docstring 참조."""
-    # ① 인자 크기 — bounded 면제 불가
+    """Return the name of the rule that fires, or None. Order: module docstring."""
+    # 1. argument size — never exempted
     if rule_on(policy, "heredoc") and HEREDOC_RE.search(cmd):
         return "heredoc"
     if rule_on(policy, "long_inline_python") and INLINE_PY_RE.search(cmd) \
@@ -138,15 +145,15 @@ def classify_bash(cmd, policy, cwd):
         return "long-inline-python"
     if rule_on(policy, "long_command") and len(cmd) > policy["max_command_length"]:
         return "long-command"
-    # ② 테스트 러너 — bounded 면제 불가 (보수)
+    # 2. test runners — never exempted (conservative)
     if rule_on(policy, "test_run") and TEST_RE.search(cmd):
         return "test-run"
-    # ④' fan-out 중 세그먼트를 가로지르는 꼴은 전체 명령 기준으로 먼저 본다
+    # 4'. fan-out shapes that span segments: check against the whole command first
     if rule_on(policy, "fan_out_read") and (
             FANOUT_FOR_CAT_RE.search(cmd) or FANOUT_FIND_EXEC_RE.search(cmd)
             or FANOUT_XARGS_RE.search(cmd)):
         return "fan-out-read"
-    # ③+④ 세그먼트별: bounded 면 출력 규칙 면제
+    # 3+4. per segment: bounded output exempts the output-size rules
     exempt = rule_on(policy, "bounded_output_exemption")
     for seg in SEG_SPLIT_RE.split(cmd):
         if not seg.strip():
@@ -200,9 +207,9 @@ def main():
     data = json.load(sys.stdin)
     policy = load_policy()
     if not policy.get("enabled"):
-        return  # OFF 베이스라인: 판정도 로그도 없음
+        return  # OFF baseline: no verdicts, no logs
     if data.get("agent_id"):
-        return  # subagent 면제
+        return  # subagents are exempt
     tool = data.get("tool_name")
     tool_input = data.get("tool_input") or {}
     cwd = data.get("cwd") or os.getcwd()
@@ -229,7 +236,7 @@ def main():
             return
         log_event(agent="main", tool=tool, decision="allow")
     elif tool == "Agent":
-        # context-worker 는 반드시 일반 subagent 로 — name 이 있으면 teammate 로 스폰된다
+        # context-worker must run as a regular subagent — a `name` spawns a teammate
         if rule_on(policy, "worker_teammate_spawn") \
                 and is_context_worker(tool_input.get("subagent_type")) \
                 and tool_input.get("name"):

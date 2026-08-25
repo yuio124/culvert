@@ -1,14 +1,18 @@
-"""Context Governor plugin 공용 — policy 로드(override 병합) · events.jsonl 로깅.
+"""Context Governor shared helpers — policy loading (with override merge) and
+events.jsonl logging.
 
-정책 우선순위 (v0.2.1):
-  1. env GOVERNOR_POLICY — 파일 전체 대체 (테스트용, 병합 없음)
-  2. default(<plugin_root>/config/policy.json, immutable) + override 병합
-     override = <state_dir>/policy.json — 없으면 default 단독(v0.2 와 동일 동작)
-- unknown key·타입 오류는 조용히 무시하지 않는다: warn 으로 수집되고, hook 경로에서는
-  events.jsonl 에 기록(같은 내용은 1회만 — 마커 해시로 중복 억제), status 스킬이 표면화한다.
-- fail-safe: override 파싱 실패 → override 전체 무시 · 개별 키 오류 → 그 키만 무시 ·
-  그 외 예외 → 기존 fail-open 원칙 유지 (governor 버그가 사용자를 막으면 안 된다).
-로그에는 command 전문·DB row·개인정보를 넣지 않는다 — 규칙명과 길이만.
+Policy precedence:
+  1. env GOVERNOR_POLICY — replaces the whole policy file (for testing, no merge)
+  2. default (<plugin_root>/config/policy.json, immutable) + override merge
+     override = <state_dir>/policy.json — absent means defaults only
+- Unknown keys and type errors are not silently ignored: they are collected as
+  warnings; on the hook path they are written to events.jsonl once (deduplicated
+  by a content-hash marker) and surfaced by the status skill.
+- Fail-safe: a broken override file is ignored entirely; a bad individual key is
+  skipped; any other exception falls back to fail-open (a governor bug must
+  never lock the user out).
+Logs never contain command contents, DB rows, or personal data — rule names and
+lengths only.
 """
 import hashlib
 import json
@@ -24,7 +28,8 @@ DEFAULT_POLICY = {
     "rules": {},
 }
 
-#: override 검증에 쓰는 키·타입 스키마. rules 의 유효 이름은 gate/validator 가 실제로 보는 것들.
+#: key/type schema used to validate overrides. Valid rule names are the ones the
+#: gate/validator actually read.
 POLICY_TYPES = {
     "enabled": bool,
     "max_command_length": int,
@@ -64,13 +69,13 @@ def _read_json(path):
 
 
 def _merge_override(base, ov, warnings):
-    """base 위에 ov 를 키 검증하며 병합. 문제 키는 건너뛰고 warnings 에 적는다."""
+    """Merge ov onto base with key validation; skip bad keys and record warnings."""
     for k, v in ov.items():
         if k not in POLICY_TYPES:
             warnings.append(("unknown-policy-key", k))
             continue
         want = POLICY_TYPES[k]
-        # bool 은 int 의 하위형이라 순서 주의: int 자리에 True 가 오면 타입 오류로 본다
+        # bool is a subtype of int in Python — treat True in an int slot as a type error
         if want is int and isinstance(v, bool) or not isinstance(v, want):
             warnings.append(("bad-policy-type", f"{k}={type(v).__name__}"))
             continue
@@ -91,7 +96,7 @@ def _merge_override(base, ov, warnings):
 
 
 def load_policy_ex():
-    """(policy, source 설명, warnings[(rule, detail)]) — 로그를 남기지 않는다 (status 용)."""
+    """Return (policy, source description, warnings). Never writes logs (for status)."""
     warnings = []
     env_p = os.environ.get("GOVERNOR_POLICY")
     if env_p:
@@ -101,13 +106,14 @@ def load_policy_ex():
             merged.update(p)
             return merged, f"env GOVERNOR_POLICY ({env_p})", warnings
         except Exception:
-            return dict(DEFAULT_POLICY), f"env GOVERNOR_POLICY ({env_p}) — 로드 실패, 내장 기본값(disabled)", warnings
+            return dict(DEFAULT_POLICY), \
+                f"env GOVERNOR_POLICY ({env_p}) — load failed, built-in defaults (disabled)", warnings
 
     try:
         base = dict(DEFAULT_POLICY)
         base.update(_read_json(default_policy_path()))
     except Exception:
-        return dict(DEFAULT_POLICY), "default 로드 실패 — 내장 기본값(disabled)", warnings
+        return dict(DEFAULT_POLICY), "default load failed — built-in defaults (disabled)", warnings
 
     ov_path = override_policy_path()
     if not os.path.isfile(ov_path):
@@ -118,13 +124,13 @@ def load_policy_ex():
             raise ValueError("override root must be an object")
     except Exception:
         warnings.append(("broken-policy-override", ov_path))
-        return base, f"default (override 파싱 실패 — 무시: {ov_path})", warnings
+        return base, f"default (override unreadable — ignored: {ov_path})", warnings
     base = _merge_override(base, ov, warnings)
     return base, f"default + override ({ov_path})", warnings
 
 
 def _warn_once(warnings):
-    """같은 경고 묶음은 events.jsonl 에 1회만 — 내용 해시 마커로 억제."""
+    """Write a given warning set to events.jsonl only once (content-hash marker)."""
     try:
         digest = hashlib.sha256(json.dumps(sorted(warnings)).encode()).hexdigest()[:16]
         marker = os.path.join(state_dir(), ".policy_warned")
@@ -145,7 +151,7 @@ def _warn_once(warnings):
 
 
 def load_policy():
-    """hook 용 — 경고를 events.jsonl 에 기록(중복 억제)하고 policy 만 돌려준다."""
+    """Hook path — logs warnings to events.jsonl (deduplicated), returns the policy."""
     try:
         policy, _source, warnings = load_policy_ex()
         if warnings:
@@ -160,7 +166,7 @@ def rule_on(policy, name):
 
 
 def is_context_worker(agent_type):
-    """plugin 제공 agent 는 이름공간이 붙을 수 있다(<plugin>:context-worker) — 둘 다 같은 워커다."""
+    """Plugin agents may carry a namespace (<plugin>:context-worker) — same worker."""
     t = agent_type or ""
     return t == "context-worker" or t.endswith(":context-worker")
 
@@ -174,4 +180,4 @@ def log_event(**fields):
         with open(os.path.join(d, "events.jsonl"), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception:
-        pass  # 로깅 실패가 판정을 막으면 안 된다
+        pass  # logging failure must never block a verdict

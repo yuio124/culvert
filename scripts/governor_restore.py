@@ -1,8 +1,8 @@
-"""Context Governor plugin — SessionStart(startup|clear|compact) 역할 재주입. v0.1.1 이식판.
+"""Context Governor — SessionStart (startup|clear|compact) role re-injection.
 
-컴팩션 후 Primary 가 다시 혼자 실행자가 되는 것을 막는 프레이밍 복원.
-enforcement 자체는 PreToolUse gate 가 담당하므로 이 주입은 짧아야 한다(~10줄 고정).
-주입 문구는 .claude/hooks/governor_restore.py 와 동일(이식 원칙).
+Restores the coordinator framing so the primary thread does not silently become
+a solo executor again after compaction. Enforcement itself lives in the
+PreToolUse gate, so this injection stays short (~10 fixed lines).
 """
 import json
 import os
@@ -27,7 +27,7 @@ def main():
     if not policy.get("enabled"):
         return
     if data.get("agent_id"):
-        return  # subagent 의 세션 시작에는 주입하지 않는다
+        return  # do not inject into subagent session starts
     source = data.get("source") or ""
     log_event(agent="main", tool="SessionStart", decision="inject", rule=source)
     print(json.dumps({

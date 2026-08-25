@@ -1,5 +1,5 @@
 {
-  "_comment": "hook 단위 parity 케이스. expected_diff=true 는 이름공간 적응으로 판정이 다른 것이 정상인 케이스 (원본은 plugin 이름공간을 모른다).",
+  "_comment": "Hook-level decision cases. expected_diff=true marks cases whose outcome intentionally differs from a pre-plugin project-local implementation (namespace adaptation, bounded-output exemption); the standalone runner only checks 'expect'.",
   "pretooluse": [
     {
       "id": "A1-heavy-sqlite",
@@ -10,7 +10,7 @@
         }
       },
       "expect": "allow",
-      "note": "RC2: scalar COUNT 는 bounded-output 면제 — v0.2.1 까지는 deny 였다"
+      "note": "scalar COUNT is bounded-output exempt since v0.2.2 (was deny before)"
     },
     {
       "id": "A2-heredoc",

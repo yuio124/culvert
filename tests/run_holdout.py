@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""RC2 holdout 러너 — holdout_v022.json (규칙 수정 전에 라벨 고정) 을 gate 에 대조.
+"""Holdout runner — checks the gate against holdout_v022.json.
 
-혼동행렬 정의: 라벨 deny:* = positive. TP=deny 예측·deny 라벨(rule 무관 아님 — rule 도 일치해야 PASS,
-행렬에는 deny/allow 만 반영). 사용: python3 tests/run_holdout.py
+The holdout labels were fixed before the v0.2.2 classifier rules were written,
+and none of the commands duplicate the development test prompts.
+
+Confusion matrix: a deny:* label counts as positive. A case PASSes only when the
+predicted rule matches the label exactly; the matrix itself uses deny/allow only.
+Usage: python3 tests/run_holdout.py
 """
 import json
 import os
@@ -34,7 +38,7 @@ def main():
     tmp = tempfile.mkdtemp(prefix="governor-holdout-")
     big = os.path.join(tmp, "big.txt")
     open(big, "w").write("x" * 300000)
-    # cwd 픽스처: find/glob 규칙용 실재 디렉터리·파일
+    # cwd fixture: real directories/files for the find/glob rules
     for d in ("src", "test", "scripts"):
         os.makedirs(os.path.join(tmp, d), exist_ok=True)
     open(os.path.join(tmp, "src", "a.js"), "w").write("x")
@@ -66,7 +70,7 @@ def main():
     print(f"\nN={n}  TP={tp} FP={fp} FN={fn} TN={tn}")
     print(f"precision={prec:.0%} recall={rec:.0%} "
           f"FPR={fp / (fp + tn):.0%} FNR={fn / (fn + tp):.0%}")
-    print("RULE-MISMATCH+판정 FAIL 합:", fails)
+    print("total FAILs (verdict or rule mismatch):", fails)
     sys.exit(1 if fails else 0)
 
 

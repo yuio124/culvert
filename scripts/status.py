@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Context Governor 상태 보고 — 읽기 전용.
+"""Context Governor status report — strictly read-only.
 
-철칙: 이 스크립트는 어떤 파일도 쓰지 않는다. events.jsonl 에 기록하지 않는다
-(상태 확인이 로그를 오염시키면 안 된다) — 그래서 load_policy() 가 아니라
-load_policy_ex() 를 쓴다(경고를 로그 대신 화면으로).
+This script never writes any file and never appends to events.jsonl (a status
+check must not pollute the log) — hence load_policy_ex() instead of
+load_policy(): warnings go to the screen, not to the log.
 """
 import json
 import os
@@ -36,7 +36,7 @@ def plugin_version():
 def worker_model():
     raw = read(os.path.join(PLUGIN_ROOT, "agents", "context-worker.md")) or ""
     m = re.search(r"^model:\s*(\S+)", raw, re.M)
-    return m.group(1) if m else "?(frontmatter 에 model 없음 — 세션 모델 상속)"
+    return m.group(1) if m else "?(no model in frontmatter — inherits session model)"
 
 
 def project_root():
@@ -44,7 +44,7 @@ def project_root():
 
 
 def legacy_hook_wiring():
-    """프로젝트 settings 에 legacy governor hook 배선이 남아 있나."""
+    """Is a project-level copy of the governor hooks still wired in settings?"""
     hits = []
     for name in ("settings.json", "settings.local.json"):
         raw = read(os.path.join(project_root(), ".claude", name))
@@ -82,33 +82,33 @@ def main():
     proj_worker = os.path.isfile(
         os.path.join(project_root(), ".claude", "agents", "context-worker.md"))
 
-    print("Context Governor status (읽기 전용)")
+    print("Context Governor status (read-only)")
     print(f"  Governor enabled  : {policy.get('enabled')}")
     print(f"  Plugin version    : {plugin_version()}")
-    line = "  Worker type       : context-governor:context-worker"
-    print(line)
+    print("  Worker type       : context-governor:context-worker")
     if proj_worker:
-        print("                      ⚠ 프로젝트 .claude/agents/context-worker.md 도 존재 — "
-              "무접두 'context-worker' 호출은 그쪽(legacy)으로 간다")
+        print("                      WARNING: a project-level .claude/agents/context-worker.md "
+              "also exists — un-prefixed 'context-worker' calls go to that copy")
     print(f"  Worker model      : {worker_model()}")
     print(f"  Policy source     : {source}")
     print(f"  Event log         : {log_path} "
-          f"({'없음' if recent is None else str(total_lines) + '줄'})")
+          f"({'absent' if recent is None else str(total_lines) + ' lines'})")
     if dup:
-        print(f"  Legacy hook 중복  : ⚠ 배선 잔존 → gate 이중 실행 위험: {', '.join(dup)}")
+        print(f"  Duplicate hooks   : WARNING — governor hooks also wired in project settings "
+              f"(double gating): {', '.join(dup)}")
     else:
-        print("  Legacy hook 중복  : 없음")
+        print("  Duplicate hooks   : none")
     if recent is None:
-        print("  Recent decisions  : (이벤트 로그 없음 — 이 프로젝트에서 아직 hook 이 안 돌았다)")
+        print("  Recent decisions  : (no event log yet — hooks have not fired in this project)")
     else:
         counts, deny_rules = recent
-        top = " · ".join(f"{r} {n}" for r, n in
+        top = " / ".join(f"{r} {n}" for r, n in
                          sorted(deny_rules.items(), key=lambda x: -x[1])[:3])
-        summary = " · ".join(f"{k} {v}" for k, v in sorted(counts.items()))
-        print(f"  Recent decisions  : 최근 {min(total_lines, RECENT_N)}건 — {summary or '없음'}"
-              + (f" (deny 상위: {top})" if top else ""))
+        summary = " / ".join(f"{k} {v}" for k, v in sorted(counts.items()))
+        print(f"  Recent decisions  : last {min(total_lines, RECENT_N)} — {summary or 'none'}"
+              + (f" (top deny rules: {top})" if top else ""))
     for rule, detail in warnings:
-        print(f"  ⚠ policy 경고     : {rule}: {detail}")
+        print(f"  Policy warning    : {rule}: {detail}")
 
 
 if __name__ == "__main__":
