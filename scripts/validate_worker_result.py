@@ -1,4 +1,4 @@
-"""Context Governor — SubagentStop validator (context-worker only).
+"""CULVERT — SubagentStop validator (context-worker only).
 
 Keeps the worker from leaking raw logs into the primary context:
 - last_assistant_message over max_result_bytes (default 8KB) -> block (ask to rewrite)

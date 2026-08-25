@@ -1,4 +1,4 @@
-"""Context Governor — PreToolUse gate (Bash|Read|Agent). v0.2.2.
+"""CULVERT — PreToolUse gate (Bash|Read|Agent). v0.2.2.
 
 Criterion (explicit): not "computationally heavy" but
 **"risk of leaving large tool arguments/results in the primary context"**.
@@ -196,7 +196,7 @@ def deny(rule):
     deny_reason(
         f"DELEGATE_REQUIRED: rule={rule}. This call risks flooding the primary context "
         "with large arguments/results. "
-        "Delegate it to context-worker (Agent tool, subagent_type: \"context-governor:context-worker\") "
+        "Delegate it to context-worker (Agent tool, subagent_type: \"culvert:context-worker\") "
         "and synthesize from its compact RESULT artifact. "
         "If this is a false positive that the Primary must run directly, prefix the command with "
         "GOVERNOR_OVERRIDE=\"reason\" (the override is logged)."

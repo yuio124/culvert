@@ -1,11 +1,11 @@
 {
-  "name": "context-governor",
+  "name": "culvert",
   "version": "0.2.2",
   "description": "Keeps the primary Claude Code thread as a coordinator: heavy execution (DB queries, tests, recursive search, large reads) is denied on the main thread and delegated to an isolated context-worker subagent that returns a compact RESULT artifact.",
   "author": {
     "name": "Taewoong Hwang"
   },
   "license": "MIT",
-  "repository": "https://github.com/yuio124/context-governor",
-  "homepage": "https://github.com/yuio124/context-governor"
+  "repository": "https://github.com/yuio124/culvert",
+  "homepage": "https://github.com/yuio124/culvert"
 }

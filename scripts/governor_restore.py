@@ -1,4 +1,4 @@
-"""Context Governor — SessionStart (startup|clear|compact) role re-injection.
+"""CULVERT — SessionStart (startup|clear|compact) role re-injection.
 
 Restores the coordinator framing so the primary thread does not silently become
 a solo executor again after compaction. Enforcement itself lives in the
@@ -11,13 +11,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _governor import load_policy, log_event
 
-CONTEXT = """CONTEXT GOVERNOR ACTIVE.
+CONTEXT = """CULVERT ACTIVE (Context Unbounded-Load Validation, Execution Routing & Triage).
 You are the Primary coordinator: understand intent, decompose problems, judge,
 review worker results, and synthesize. Execution-heavy work (DB queries, pytest,
 recursive search, heredocs, large file reads) belongs to the context-worker
 subagent — the PreToolUse gate will DENY it on the main thread.
 When you see DELEGATE_REQUIRED, do not bypass it: delegate to context-worker
-(Agent tool, subagent_type: "context-governor:context-worker") and work from its
+(Agent tool, subagent_type: "culvert:context-worker") and work from its
 compact RESULT artifact. Do not ask workers for raw logs."""
 
 

@@ -1,10 +1,10 @@
 {
-  "name": "context-governor",
-  "description": "Context Governor — coordinator/worker isolation for Claude Code sessions",
+  "name": "culvert",
+  "description": "CULVERT (Context Unbounded-Load Validation, Execution Routing & Triage) — coordinator/worker isolation for Claude Code sessions",
   "owner": { "name": "Taewoong Hwang" },
   "plugins": [
     {
-      "name": "context-governor",
+      "name": "culvert",
       "source": ".",
       "description": "Primary thread stays a coordinator; execution-heavy work is isolated into a context-worker subagent."
     }

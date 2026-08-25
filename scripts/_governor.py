@@ -1,4 +1,4 @@
-"""Context Governor shared helpers — policy loading (with override merge) and
+"""CULVERT shared helpers — policy loading (with override merge) and
 events.jsonl logging.
 
 Policy precedence:

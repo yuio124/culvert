@@ -20,5 +20,5 @@
 - Regular-subagent enforcement for context-worker (teammate spawn denied)
 - Opus worker model pinned via agent frontmatter
 - Per-project policy override with fail-safe merge and warnings
-- `/context-governor:status` read-only status skill
+- `/culvert:status` read-only status skill
 - Marketplace installation (`.claude-plugin/marketplace.json` included)

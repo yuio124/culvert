@@ -142,7 +142,7 @@
       "in": {
         "tool_name": "Agent",
         "tool_input": {
-          "subagent_type": "context-governor:context-worker",
+          "subagent_type": "culvert:context-worker",
           "name": "w1",
           "prompt": "x",
           "description": "x"
@@ -195,7 +195,7 @@
     {
       "id": "G3-ns-oversize",
       "in": {
-        "agent_type": "context-governor:context-worker",
+        "agent_type": "culvert:context-worker",
         "last_assistant_message": "RESULT\nstatus: SUCCESS\n__PAD9K__"
       },
       "expect": "block",

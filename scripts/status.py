@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Context Governor status report — strictly read-only.
+"""CULVERT status report — strictly read-only.
 
 This script never writes any file and never appends to events.jsonl (a status
 check must not pollute the log) — hence load_policy_ex() instead of
@@ -82,10 +82,10 @@ def main():
     proj_worker = os.path.isfile(
         os.path.join(project_root(), ".claude", "agents", "context-worker.md"))
 
-    print("Context Governor status (read-only)")
+    print("CULVERT status (read-only)")
     print(f"  Governor enabled  : {policy.get('enabled')}")
     print(f"  Plugin version    : {plugin_version()}")
-    print("  Worker type       : context-governor:context-worker")
+    print("  Worker type       : culvert:context-worker")
     if proj_worker:
         print("                      WARNING: a project-level .claude/agents/context-worker.md "
               "also exists — un-prefixed 'context-worker' calls go to that copy")

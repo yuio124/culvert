@@ -1,9 +1,9 @@
 ---
 name: status
-description: Read-only Context Governor status — enabled state, plugin version, worker type/model, policy source, event log, duplicate-hook warnings, and recent deny/approve counts in one screen.
+description: Read-only CULVERT status — enabled state, plugin version, worker type/model, policy source, event log, duplicate-hook warnings, and recent deny/approve counts in one screen.
 ---
 
-This skill shows the current state of Context Governor. It is **read-only** — it
+This skill shows the current state of CULVERT. It is **read-only** — it
 must not write or change any file.
 
 There is exactly one thing to do:

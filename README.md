@@ -1,13 +1,13 @@
-# Context Governor
+# CULVERT
 
-Claude Code plugin that keeps your **primary thread as a coordinator** and pushes
+**C**ontext **U**nbounded-**L**oad **V**alidation, **E**xecution **R**outing & **T**riage — a Claude Code plugin that keeps your **primary thread as a coordinator** and pushes
 execution-heavy work into an **isolated context-worker subagent**.
 
 ## Why
 
 Long agentic sessions die by context bloat: raw DB dumps, test logs, and recursive
 search output pile into the main thread until compaction erases what mattered.
-Context Governor enforces a division of labor — the primary thread decides,
+CULVERT enforces a division of labor — the primary thread decides,
 an isolated worker executes and returns a compact `RESULT` artifact.
 
 Two kinds of claims, with different strength of evidence:
@@ -35,7 +35,7 @@ execution will see little difference.
 | `SubagentStop` | Worker's final message must be a `RESULT` artifact under 8KB — oversized or schema-less replies are sent back for rewriting (with a loop guard). |
 | `SessionStart` | Re-injects the coordinator framing on startup / clear / compact. |
 
-The worker agent (`context-governor:context-worker`) is pinned to the Opus model
+The worker agent (`culvert:context-worker`) is pinned to the Opus model
 via frontmatter. Every decision is logged to `.claude/governor-plugin/events.jsonl`
 in your project (rule name and lengths only — never command contents).
 
@@ -43,7 +43,7 @@ in your project (rule name and lengths only — never command contents).
 
 ```bash
 claude plugin marketplace add <path-or-repo-of-this-plugin>
-claude plugin install context-governor@context-governor --scope project
+claude plugin install culvert@culvert --scope project
 ```
 
 `--scope project` records the install in your project's `.claude/settings.json`,
@@ -53,10 +53,10 @@ For a quick trial without installing: `claude --plugin-dir <path-to-this-plugin>
 ## Verify
 
 ```bash
-claude plugin list        # context-governor ✔ enabled
+claude plugin list        # culvert ✔ enabled
 ```
 
-Inside a session, run `/context-governor:status` — a read-only report:
+Inside a session, run `/culvert:status` — a read-only report:
 enabled state, version, worker type/model, policy source, event-log path,
 duplicate-hook warnings, and recent deny/approve counts.
 Then ask for something heavy (`sqlite3 x.db 'SELECT 1'`) — you should see
@@ -76,7 +76,7 @@ Put only the keys you want to change in
 - No override file → defaults apply (works out of the box)
 - Broken JSON → override ignored, defaults keep working (the governor never dies on config)
 - Wrong type → that key is ignored; unknown keys are **warned**, not silently dropped
-  (one `warn` event in the log, surfaced by `/context-governor:status`)
+  (one `warn` event in the log, surfaced by `/culvert:status`)
 - Env escape hatches: `GOVERNOR_POLICY=<file>` replaces the whole policy (testing),
   `GOVERNOR_DIR=<dir>` relocates state/logs
 - False positive on one command? Prefix it: `GOVERNOR_OVERRIDE="reason" <command>` (logged)
@@ -84,7 +84,7 @@ Put only the keys you want to change in
 ## Uninstall
 
 ```bash
-claude plugin uninstall context-governor --scope project   # match the scope you installed with
+claude plugin uninstall culvert --scope project   # match the scope you installed with
 ```
 
 Nothing else to clean up — the plugin never modifies your project besides its
