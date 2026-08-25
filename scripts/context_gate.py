@@ -19,7 +19,7 @@ Evaluation order (classify_bash):
      Fan-out patterns that span segments (for..cat, find -exec cat, xargs cat)
      are also checked against the whole command.
 
-Script errors fail open (exit 0). Worker name matching: _governor.is_context_worker.
+Script errors fail open (exit 0). Worker name matching: _culvert.is_context_worker.
 """
 import json
 import os
@@ -27,9 +27,9 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _governor import is_context_worker, load_policy, log_event, rule_on
+from _culvert import is_context_worker, load_policy, log_event, rule_on
 
-OVERRIDE_RE = re.compile(r'^\s*GOVERNOR_OVERRIDE=("([^"]+)"|\'([^\']+)\'|(\S+))\s+')
+OVERRIDE_RE = re.compile(r'^\s*CULVERT_OVERRIDE=("([^"]+)"|\'([^\']+)\'|(\S+))\s+')
 
 # 1. argument size
 HEREDOC_RE = re.compile(r"(?<!<)<<(?!<)-?\s*['\"]?[A-Za-z_]")
@@ -199,7 +199,7 @@ def deny(rule):
         "Delegate it to context-worker (Agent tool, subagent_type: \"culvert:context-worker\") "
         "and synthesize from its compact RESULT artifact. "
         "If this is a false positive that the Primary must run directly, prefix the command with "
-        "GOVERNOR_OVERRIDE=\"reason\" (the override is logged)."
+        "CULVERT_OVERRIDE=\"reason\" (the override is logged)."
     )
 
 

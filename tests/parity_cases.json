@@ -98,7 +98,7 @@
       "in": {
         "tool_name": "Bash",
         "tool_input": {
-          "command": "GOVERNOR_OVERRIDE=\"test\" sqlite3 x.db 'SELECT 1'"
+          "command": "CULVERT_OVERRIDE=\"test\" sqlite3 x.db 'SELECT 1'"
         }
       },
       "expect": "allow"

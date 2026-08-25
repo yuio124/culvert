@@ -16,14 +16,14 @@ PLUGIN = os.path.dirname(HERE)
 SCRIPTS = {
     "pretooluse": "context_gate.py",
     "subagentstop": "validate_worker_result.py",
-    "sessionstart": "governor_restore.py",
+    "sessionstart": "culvert_restore.py",
 }
 
 
 def run_hook(hook, payload, tmp):
     env = dict(os.environ)
-    env.pop("GOVERNOR_POLICY", None)
-    env["GOVERNOR_DIR"] = tmp
+    env.pop("CULVERT_POLICY", None)
+    env["CULVERT_DIR"] = tmp
     script = os.path.join(PLUGIN, "scripts", SCRIPTS[hook])
     r = subprocess.run([sys.executable, script], input=json.dumps(payload),
                        capture_output=True, text=True, env=env, cwd=PLUGIN, timeout=10)
@@ -50,7 +50,7 @@ def classify(hook, out):
 
 def main():
     cases = json.load(open(os.path.join(HERE, "parity_cases.json"), encoding="utf-8"))
-    tmp = tempfile.mkdtemp(prefix="governor-cases-")
+    tmp = tempfile.mkdtemp(prefix="culvert-cases-")
     big = os.path.join(tmp, "big.txt")
     open(big, "w").write("x" * 300000)
     os.makedirs(os.path.join(tmp, "docs"), exist_ok=True)  # the find-dir rule checks a real directory under cwd

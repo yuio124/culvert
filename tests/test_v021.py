@@ -3,7 +3,7 @@
 read-only status script.
 
 Standalone (no pytest): python3 tests/test_v021.py
-Every case redirects GOVERNOR_DIR to a temp directory so real logs stay clean.
+Every case redirects CULVERT_DIR to a temp directory so real logs stay clean.
 """
 import json
 import os
@@ -27,17 +27,17 @@ def check(name, cond, detail=""):
 
 
 def run_gate(payload, gdir):
-    env = dict(os.environ, GOVERNOR_DIR=gdir)
-    env.pop("GOVERNOR_POLICY", None)
+    env = dict(os.environ, CULVERT_DIR=gdir)
+    env.pop("CULVERT_POLICY", None)
     r = subprocess.run([sys.executable, GATE], input=json.dumps(payload),
                        capture_output=True, text=True, env=env, timeout=10)
     return r.stdout.strip()
 
 
 def load_ex(gdir):
-    env = dict(os.environ, GOVERNOR_DIR=gdir)
-    env.pop("GOVERNOR_POLICY", None)
-    code = ("import sys, json; sys.path.insert(0, %r); from _governor import load_policy_ex as L; "
+    env = dict(os.environ, CULVERT_DIR=gdir)
+    env.pop("CULVERT_POLICY", None)
+    code = ("import sys, json; sys.path.insert(0, %r); from _culvert import load_policy_ex as L; "
             "p, s, w = L(); print(json.dumps({'p': p, 's': s, 'w': w}))"
             % os.path.join(PLUGIN, "scripts"))
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
@@ -109,11 +109,11 @@ def main():
     # F/G. status — read-only, all report fields present
     d = os.path.join(base, "e")  # reuse the directory that has a log
     before = os.path.getsize(os.path.join(d, "events.jsonl"))
-    env = dict(os.environ, GOVERNOR_DIR=d); env.pop("GOVERNOR_POLICY", None)
+    env = dict(os.environ, CULVERT_DIR=d); env.pop("CULVERT_POLICY", None)
     out = subprocess.run([sys.executable, STATUS], capture_output=True, text=True, env=env).stdout
     after = os.path.getsize(os.path.join(d, "events.jsonl"))
     check("F1 status leaves the log unchanged", before == after)
-    for label in ("Governor enabled", "Plugin version", "Worker type", "Worker model",
+    for label in ("CULVERT enabled", "Plugin version", "Worker type", "Worker model",
                   "Policy source", "Event log", "Duplicate hooks", "Recent decisions"):
         check(f"G {label}", label in out)
     check("G warning surfaced", "unknown-policy-key" in out)

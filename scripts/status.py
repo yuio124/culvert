@@ -11,10 +11,10 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _governor import PLUGIN_ROOT, load_policy_ex, state_dir
+from _culvert import PLUGIN_ROOT, load_policy_ex, state_dir
 
 RECENT_N = 200
-LEGACY_SCRIPTS = ("context_gate.py", "validate_worker_result.py", "governor_restore.py")
+LEGACY_SCRIPTS = ("context_gate.py", "validate_worker_result.py", "culvert_restore.py")
 
 
 def read(path):
@@ -44,7 +44,7 @@ def project_root():
 
 
 def legacy_hook_wiring():
-    """Is a project-level copy of the governor hooks still wired in settings?"""
+    """Is a project-level copy of the CULVERT hooks still wired in settings?"""
     hits = []
     for name in ("settings.json", "settings.local.json"):
         raw = read(os.path.join(project_root(), ".claude", name))
@@ -83,7 +83,7 @@ def main():
         os.path.join(project_root(), ".claude", "agents", "context-worker.md"))
 
     print("CULVERT status (read-only)")
-    print(f"  Governor enabled  : {policy.get('enabled')}")
+    print(f"  CULVERT enabled  : {policy.get('enabled')}")
     print(f"  Plugin version    : {plugin_version()}")
     print("  Worker type       : culvert:context-worker")
     if proj_worker:
@@ -94,7 +94,7 @@ def main():
     print(f"  Event log         : {log_path} "
           f"({'absent' if recent is None else str(total_lines) + ' lines'})")
     if dup:
-        print(f"  Duplicate hooks   : WARNING — governor hooks also wired in project settings "
+        print(f"  Duplicate hooks   : WARNING — CULVERT hooks also wired in project settings "
               f"(double gating): {', '.join(dup)}")
     else:
         print("  Duplicate hooks   : none")

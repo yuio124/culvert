@@ -21,8 +21,8 @@ GATE = os.path.join(PLUGIN, "scripts", "context_gate.py")
 
 def run_gate(cmd, tmp, cwd):
     env = dict(os.environ)
-    env.pop("GOVERNOR_POLICY", None)
-    env["GOVERNOR_DIR"] = tmp
+    env.pop("CULVERT_POLICY", None)
+    env["CULVERT_DIR"] = tmp
     payload = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": cwd}
     r = subprocess.run([sys.executable, GATE], input=json.dumps(payload),
                        capture_output=True, text=True, env=env, timeout=10)
@@ -35,7 +35,7 @@ def run_gate(cmd, tmp, cwd):
 
 def main():
     cases = json.load(open(os.path.join(HERE, "holdout_v022.json"), encoding="utf-8"))
-    tmp = tempfile.mkdtemp(prefix="governor-holdout-")
+    tmp = tempfile.mkdtemp(prefix="culvert-holdout-")
     big = os.path.join(tmp, "big.txt")
     open(big, "w").write("x" * 300000)
     # cwd fixture: real directories/files for the find/glob rules

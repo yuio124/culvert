@@ -12,7 +12,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _governor import is_context_worker, load_policy, log_event
+from _culvert import is_context_worker, load_policy, log_event
 
 STATUS_RE = re.compile(r"\bstatus:\s*(SUCCESS|PARTIAL|BLOCKED)\b")
 
@@ -63,7 +63,7 @@ def main():
     print(json.dumps({
         "decision": "block",
         "reason": (
-            "GOVERNOR: your final message violates the worker result contract ("
+            "CULVERT: your final message violates the worker result contract ("
             + "; ".join(v) + "). Rewrite your FINAL message as a compact artifact "
             "under " + str(policy["max_result_bytes"]) + " bytes, exactly in this schema, "
             "with no raw logs or step-by-step narration:\n" + SCHEMA_HINT

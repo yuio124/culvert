@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/governor_restore.py\"",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/culvert_restore.py\"",
             "timeout": 5
           }
         ]

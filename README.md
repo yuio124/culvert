@@ -20,7 +20,7 @@ Two kinds of claims, with different strength of evidence:
 
 **Observed once** (a single real workload — a multi-DB log investigation — not a
 benchmark): primary-thread context growth was 83K tokens without isolation
-discipline and 50K with the governor, and agent-coordination noise went from 22
+discipline and 50K with CULVERT, and agent-coordination noise went from 22
 deliveries to 0 after regular-subagent enforcement. Workload size differed
 between runs, so treat these as one observation, not a promised ratio.
 **Actual effect depends on your workload** — sessions that never touch heavy
@@ -36,7 +36,7 @@ execution will see little difference.
 | `SessionStart` | Re-injects the coordinator framing on startup / clear / compact. |
 
 The worker agent (`culvert:context-worker`) is pinned to the Opus model
-via frontmatter. Every decision is logged to `.claude/governor-plugin/events.jsonl`
+via frontmatter. Every decision is logged to `.claude/culvert/events.jsonl`
 in your project (rule name and lengths only — never command contents).
 
 ## Install
@@ -66,7 +66,7 @@ Then ask for something heavy (`sqlite3 x.db 'SELECT 1'`) — you should see
 
 The bundled `config/policy.json` is the immutable default — don't edit it.
 Put only the keys you want to change in
-`<your-project>/.claude/governor-plugin/policy.json`:
+`<your-project>/.claude/culvert/policy.json`:
 
 ```jsonc
 { "max_command_length": 900 }          // adjust a threshold
@@ -74,12 +74,12 @@ Put only the keys you want to change in
 ```
 
 - No override file → defaults apply (works out of the box)
-- Broken JSON → override ignored, defaults keep working (the governor never dies on config)
+- Broken JSON → override ignored, defaults keep working (CULVERT never dies on config)
 - Wrong type → that key is ignored; unknown keys are **warned**, not silently dropped
   (one `warn` event in the log, surfaced by `/culvert:status`)
-- Env escape hatches: `GOVERNOR_POLICY=<file>` replaces the whole policy (testing),
-  `GOVERNOR_DIR=<dir>` relocates state/logs
-- False positive on one command? Prefix it: `GOVERNOR_OVERRIDE="reason" <command>` (logged)
+- Env escape hatches: `CULVERT_POLICY=<file>` replaces the whole policy (testing),
+  `CULVERT_DIR=<dir>` relocates state/logs
+- False positive on one command? Prefix it: `CULVERT_OVERRIDE="reason" <command>` (logged)
 
 ## Uninstall
 
@@ -88,20 +88,20 @@ claude plugin uninstall culvert --scope project   # match the scope you installe
 ```
 
 Nothing else to clean up — the plugin never modifies your project besides its
-own log/override directory (`.claude/governor-plugin/`), which you may delete.
+own log/override directory (`.claude/culvert/`), which you may delete.
 
 ## Known limits
 
 - Heavy-command detection is regex-based: unusual quoting or wrappers can slip
   through, and the length rules can flag legitimate long commands (use
-  `GOVERNOR_OVERRIDE=` for those).
+  `CULVERT_OVERRIDE=` for those).
 - The gate reads `agent_id` to exempt subagents — behavior verified on
   Claude Code 2.1.243–2.1.245; harness changes may require re-validation.
 - `SessionStart` re-injection covers startup/clear/compact; other entry paths
   (e.g. resume) rely on the conversation itself.
 - Enforcement is per-project and advisory to the model: the model is told *why*
   a call was denied and how to delegate — it cannot be prevented from asking the
-  user to disable the governor.
+  user to disable CULVERT.
 
 ## Tests
 

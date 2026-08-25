@@ -9,7 +9,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _governor import load_policy, log_event
+from _culvert import load_policy, log_event
 
 CONTEXT = """CULVERT ACTIVE (Context Unbounded-Load Validation, Execution Routing & Triage).
 You are the Primary coordinator: understand intent, decompose problems, judge,

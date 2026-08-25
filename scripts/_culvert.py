@@ -2,14 +2,14 @@
 events.jsonl logging.
 
 Policy precedence:
-  1. env GOVERNOR_POLICY — replaces the whole policy file (for testing, no merge)
+  1. env CULVERT_POLICY — replaces the whole policy file (for testing, no merge)
   2. default (<plugin_root>/config/policy.json, immutable) + override merge
      override = <state_dir>/policy.json — absent means defaults only
 - Unknown keys and type errors are not silently ignored: they are collected as
   warnings; on the hook path they are written to events.jsonl once (deduplicated
   by a content-hash marker) and surfaced by the status skill.
 - Fail-safe: a broken override file is ignored entirely; a bad individual key is
-  skipped; any other exception falls back to fail-open (a governor bug must
+  skipped; any other exception falls back to fail-open (a CULVERT bug must
   never lock the user out).
 Logs never contain command contents, DB rows, or personal data — rule names and
 lengths only.
@@ -56,11 +56,11 @@ def override_policy_path():
 
 
 def state_dir():
-    d = os.environ.get("GOVERNOR_DIR")
+    d = os.environ.get("CULVERT_DIR")
     if d:
         return d
     root = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
-    return os.path.join(root, ".claude", "governor-plugin")
+    return os.path.join(root, ".claude", "culvert")
 
 
 def _read_json(path):
@@ -98,16 +98,16 @@ def _merge_override(base, ov, warnings):
 def load_policy_ex():
     """Return (policy, source description, warnings). Never writes logs (for status)."""
     warnings = []
-    env_p = os.environ.get("GOVERNOR_POLICY")
+    env_p = os.environ.get("CULVERT_POLICY")
     if env_p:
         try:
             p = _read_json(env_p)
             merged = dict(DEFAULT_POLICY)
             merged.update(p)
-            return merged, f"env GOVERNOR_POLICY ({env_p})", warnings
+            return merged, f"env CULVERT_POLICY ({env_p})", warnings
         except Exception:
             return dict(DEFAULT_POLICY), \
-                f"env GOVERNOR_POLICY ({env_p}) — load failed, built-in defaults (disabled)", warnings
+                f"env CULVERT_POLICY ({env_p}) — load failed, built-in defaults (disabled)", warnings
 
     try:
         base = dict(DEFAULT_POLICY)
