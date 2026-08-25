@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.3 (rc3, unreleased)
+
+- long-command is no longer a standalone argument-length rule. Measured on real
+  sessions, every standalone firing was a false deny (6/6) — the command string
+  is already in the primary context when the hook runs. It now fires only as a
+  backstop: command over max_command_length AND at least one segment whose
+  output could not be statically bounded.
+- max_command_length default raised 500 -> 1200 (conservative initial value,
+  not a tuned constant).
+- heredoc / long-inline-python are intentionally unchanged: they signal inline
+  exploratory execution, where the follow-up iteration loop is the real risk.
+
 ## 0.2.2 (rc2, unreleased)
 
 - Classifier semantics documented: the gate targets *context risk* (large tool

@@ -68,10 +68,11 @@
       "in": {
         "tool_name": "Bash",
         "tool_input": {
-          "command": "__LONG600__"
+          "command": "__LONG1300__"
         }
       },
-      "expect": "deny:long-command"
+      "expect": "deny:long-command",
+      "note": "v0.2.3: threshold 1200, fires only with an unbounded segment"
     },
     {
       "id": "A8-big-cat",

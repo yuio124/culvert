@@ -55,7 +55,7 @@ def main():
     open(big, "w").write("x" * 300000)
     os.makedirs(os.path.join(tmp, "docs"), exist_ok=True)  # the find-dir rule checks a real directory under cwd
     subst = {"__BIGFILE__": big, "__PAD9K__": "y" * 9000,
-             "__LONG600__": "echo " + "z" * 600, "__TMP__": tmp}
+             "__LONG600__": "echo " + "z" * 600, "__LONG1300__": "echo " + "z" * 1300, "__TMP__": tmp}
 
     fails = 0
     for hook, lst in cases.items():

@@ -44,7 +44,7 @@ def load_ex(gdir):
     return json.loads(r.stdout)
 
 
-LONG = {"tool_name": "Bash", "tool_input": {"command": "echo " + "z" * 600}}
+LONG = {"tool_name": "Bash", "tool_input": {"command": "echo " + "z" * 1300}}
 DEFAULT = json.load(open(os.path.join(PLUGIN, "config", "policy.json")))
 
 
@@ -57,18 +57,18 @@ def main():
     check("A1 effective == default", {k: r["p"][k] for k in DEFAULT} == DEFAULT)
     check("A2 source == default", r["s"] == "default", r["s"])
     check("A3 no warnings", r["w"] == [])
-    check("A4 600 chars -> deny:long-command", "long-command" in run_gate(LONG, d))
+    check("A4 1300 chars -> deny:long-command", "long-command" in run_gate(LONG, d))
 
     # B. valid override -> only the given keys change
     d = os.path.join(base, "b"); os.makedirs(d)
-    json.dump({"max_command_length": 900, "rules": {"test_run": False}},
+    json.dump({"max_command_length": 2000, "rules": {"test_run": False}},
               open(os.path.join(d, "policy.json"), "w"))
     r = load_ex(d)
-    check("B1 max_command_length=900", r["p"]["max_command_length"] == 900)
+    check("B1 max_command_length=2000", r["p"]["max_command_length"] == 2000)
     check("B2 other thresholds stay default", r["p"]["max_read_bytes"] == DEFAULT["max_read_bytes"])
     check("B3 rules.test_run=False, others kept",
           r["p"]["rules"]["test_run"] is False and r["p"]["rules"]["heredoc"] is True)
-    check("B4 600 chars -> allow (limit 900)", run_gate(LONG, d) == "")
+    check("B4 1300 chars -> allow (limit 2000)", run_gate(LONG, d) == "")
     check("B5 pytest -> allow (rule disabled)",
           run_gate({"tool_name": "Bash", "tool_input": {"command": "pytest -q"}}, d) == "")
     check("B6 sqlite3 -> still deny",
@@ -80,7 +80,7 @@ def main():
     r = load_ex(d)
     check("C1 defaults effective", r["p"]["max_command_length"] == DEFAULT["max_command_length"])
     check("C2 broken warning", any(w[0] == "broken-policy-override" for w in r["w"]))
-    check("C3 600 chars -> deny (default)", "long-command" in run_gate(LONG, d))
+    check("C3 1300 chars -> deny (default)", "long-command" in run_gate(LONG, d))
 
     # D. wrong type -> only that key ignored
     d = os.path.join(base, "d"); os.makedirs(d)

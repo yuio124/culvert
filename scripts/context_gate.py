@@ -1,12 +1,12 @@
-"""CULVERT — PreToolUse gate (Bash|Read|Agent). v0.2.2.
+"""CULVERT — PreToolUse gate (Bash|Read|Agent). v0.2.3.
 
 Criterion (explicit): not "computationally heavy" but
 **"risk of leaving large tool arguments/results in the primary context"**.
 
 Evaluation order (classify_bash):
-  1. Argument-size rules — heredoc, long inline python, long command. Capping the
-     output does not help: the argument itself lands in the context, so these are
-     never exempted.
+  1. Argument-size rules — heredoc, long inline python. These signal that the
+     primary thread is about to run exploratory execution inline (the follow-up
+     iteration loop is the real context risk), so they are never exempted.
   2. test-run — Python (pytest/unittest) + Node (npm/pnpm/yarn test, node --test,
      npx jest/vitest). Conservatively never exempted (suite output and duration
      are not statically predictable). Other ecosystems (Go/Cargo/.NET) are out of
@@ -18,6 +18,10 @@ Evaluation order (classify_bash):
   4. Output-size rules — db-query, recursive-search, fan-out-read, big-file-dump.
      Fan-out patterns that span segments (for..cat, find -exec cat, xargs cat)
      are also checked against the whole command.
+  5. long-command backstop — fires only when the command exceeds
+     max_command_length AND at least one segment's output could not be statically
+     bounded. Length alone is not a context risk: the command string is already
+     in the primary context when this hook runs.
 
 Script errors fail open (exit 0). Worker name matching: _culvert.is_context_worker.
 """
@@ -143,8 +147,6 @@ def classify_bash(cmd, policy, cwd):
     if rule_on(policy, "long_inline_python") and INLINE_PY_RE.search(cmd) \
             and len(cmd) > policy["max_inline_code_length"]:
         return "long-inline-python"
-    if rule_on(policy, "long_command") and len(cmd) > policy["max_command_length"]:
-        return "long-command"
     # 2. test runners — never exempted (conservative)
     if rule_on(policy, "test_run") and TEST_RE.search(cmd):
         return "test-run"
@@ -155,6 +157,7 @@ def classify_bash(cmd, policy, cwd):
         return "fan-out-read"
     # 3+4. per segment: bounded output exempts the output-size rules
     exempt = rule_on(policy, "bounded_output_exemption")
+    any_opaque = False
     for seg in SEG_SPLIT_RE.split(cmd):
         if not seg.strip():
             continue
@@ -163,6 +166,15 @@ def classify_bash(cmd, policy, cwd):
         rule = _output_rule(seg, policy, cwd)
         if rule:
             return rule
+        any_opaque = True  # not bounded and no specific rule -> output statically unknown
+    # 5. long-command, v0.2.3: no longer a standalone argument-size rule. The
+    # command string is already in the primary context when this hook runs, so
+    # length alone saves nothing (measured: 6/6 false denies). It now fires only
+    # as a backstop: the command is long AND contains at least one segment whose
+    # output could not be statically bounded.
+    if any_opaque and rule_on(policy, "long_command") \
+            and len(cmd) > policy["max_command_length"]:
+        return "long-command"
     return None
 
 
