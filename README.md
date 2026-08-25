@@ -26,6 +26,19 @@ between runs, so treat these as one observation, not a promised ratio.
 **Actual effect depends on your workload** — sessions that never touch heavy
 execution will see little difference.
 
+### An observed side effect
+
+CULVERT's primary purpose remains context isolation: keeping high-noise
+execution and its output out of the primary agent context. Separately from the
+numbers above, early real-world use suggested a second-order effect of the
+worker RESULT contract. Because a worker reply separates measurements, rejected
+hypotheses, unresolved questions, and conclusions into distinct fields, the
+kinds of information a free-form summary tends to drop — failed hypotheses,
+unverified assumptions, uninvestigated scope — appeared to stay visible to the
+primary agent more often. This is an anecdotal observation from early use,
+weaker evidence than the single-workload measurements above, and it has not
+been systematically validated.
+
 ## What it enforces
 
 | Hook | Enforcement |
