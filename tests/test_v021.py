@@ -113,8 +113,8 @@ def main():
     out = subprocess.run([sys.executable, STATUS], capture_output=True, text=True, env=env).stdout
     after = os.path.getsize(os.path.join(d, "events.jsonl"))
     check("F1 status leaves the log unchanged", before == after)
-    for label in ("CULVERT enabled", "Plugin version", "Worker type", "Worker model",
-                  "Policy source", "Event log", "Conflicting installs", "Recent decisions"):
+    for label in ("CULVERT enabled", "Worker type", "Worker model",
+                  "Policy source", "Event log", "Conflicting installs", "Recent decisions", "Loaded version", "Installed version"):
         check(f"G {label}", label in out)
     check("G warning surfaced", "unknown-policy-key" in out)
 

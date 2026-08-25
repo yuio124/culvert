@@ -105,10 +105,54 @@ def plugin_registry():
                         "scope": e.get("scope"),
                         "projectPath": e.get("projectPath"),
                         "installPath": e.get("installPath"),
+                        "version": e.get("version"),
                     })
     except Exception:
         return [], False
     return entries, True
+
+
+def installed_version(enabled, registry, registry_ok):
+    """Version of CULVERT installed for *this* project, from the best-effort registry.
+
+    Selection: only records whose key is an enabled culvert@* entry, and whose
+    projectPath matches this project (project/local scope) or whose scope is
+    "user". Records for other projects are never selected. Returns
+    (version, None) or (None, reason).
+    """
+    if not registry_ok:
+        return None, "plugin registry unavailable"
+    keys = {k for k, v in enabled.items() if v and k.split("@")[0] == OWN_NAME}
+    if not keys:
+        return None, "no enabled install record for this project"
+    proj = project_root()
+    exact = [e for e in registry if e["key"] in keys and e["projectPath"] == proj]
+    user = [e for e in registry if e["key"] in keys and e["scope"] == "user"]
+    pick = (exact or user)
+    if not pick:
+        return None, "no install record for this project"
+    v = pick[0].get("version") if isinstance(pick[0], dict) else None
+    return (v, None) if v else (None, "install record has no version")
+
+
+def _semver(v):
+    try:
+        return tuple(int(x) for x in str(v).strip().split("."))
+    except Exception:
+        return None
+
+
+def version_state(loaded, installed, reason):
+    """Returns (warnings, notes) about session-vs-installed version skew."""
+    if installed is None:
+        return [], [f"installed version unavailable — {reason}"]
+    if str(loaded) == str(installed):
+        return [], []
+    a, b = _semver(loaded), _semver(installed)
+    if a and b and a < b:
+        return [f"This session is using CULVERT {loaded}, while {installed} is installed "
+                f"for this project. Start a new Claude Code session to use {installed}."], []
+    return [f"version mismatch: loaded {loaded} / installed {installed}"], []
 
 
 def _same_role_install(install_path):
@@ -212,10 +256,16 @@ def main():
     log_path = os.path.join(state_dir(), "events.jsonl")
     recent, total_lines = recent_decisions(log_path)
     conf_warn, conf_note = conflict_findings()
+    enabled_map = merged_enabled_plugins()
+    registry, registry_ok = plugin_registry()
+    loaded = plugin_version()
+    inst, inst_reason = installed_version(enabled_map, registry, registry_ok)
+    ver_warn, ver_note = version_state(loaded, inst, inst_reason)
 
     print("CULVERT status (read-only)")
     print(f"  CULVERT enabled   : {policy.get('enabled')}")
-    print(f"  Plugin version    : {plugin_version()}")
+    print(f"  Loaded version    : {loaded}")
+    print(f"  Installed version : {inst if inst else 'unavailable (' + str(inst_reason) + ')'}")
     print("  Worker type       : culvert:context-worker")
     print(f"  Worker model      : {worker_model()}")
     print(f"  Policy source     : {source}")
@@ -231,6 +281,12 @@ def main():
             print(f"    NOTE    {n}")
         if conf_warn:
             print("    CULVERT may not be the hook that handles a blocked command first.")
+    if ver_warn or ver_note:
+        print("  Version state:")
+        for w in ver_warn:
+            print(f"    WARNING {w}")
+        for n in ver_note:
+            print(f"    NOTE    {n}")
     if recent is None:
         print("  Recent decisions  : (no event log yet — hooks have not fired in this project)")
     else:

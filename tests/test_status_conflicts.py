@@ -132,6 +132,47 @@ def main():
     out, _ = run_status(h, p, g)
     check("H2 legacy state dir NOTE", "legacy state dir" in out)
 
+    # ---- version-state cases (v0.2.5) ----
+    import json as _json
+    real = _json.load(open(os.path.join(PLUGIN, ".claude-plugin", "plugin.json")))["version"]
+
+    def vroom(tag, inst_version, proj_path_of_record="self", enabled=True):
+        h = os.path.join(base, tag, "home"); p = os.path.join(base, tag, "proj")
+        g = os.path.join(base, tag, "state"); os.makedirs(g, exist_ok=True)
+        rec_path = p if proj_path_of_record == "self" else proj_path_of_record
+        build(h, p, proj_enabled={"culvert@culvert": enabled},
+              registry={"culvert@culvert": [{"scope": "project", "projectPath": rec_path,
+                                             "installPath": PLUGIN, "version": inst_version}]})
+        return run_status(h, p, g)[0]
+
+    out = vroom("va", real)
+    check("VA same version -> no warning", "Version state" not in out and f"Installed version : {real}" in out)
+    out = vroom("vb", "9.9.9")
+    check("VB stale WARNING", "Start a new Claude Code session to use 9.9.9" in out)
+    out = vroom("vc", "0.0.1")
+    check("VC mismatch WARNING", "version mismatch: loaded" in out)
+    h = os.path.join(base, "vd", "home"); p = os.path.join(base, "vd", "proj")
+    g = os.path.join(base, "vd", "state"); os.makedirs(g, exist_ok=True)
+    build(h, p, proj_enabled={"culvert@culvert": True})  # no registry file
+    out, rc = run_status(h, p, g)
+    check("VD no registry -> unavailable + ok", rc == 0 and "Installed version : unavailable" in out)
+    h = os.path.join(base, "ve", "home"); p = os.path.join(base, "ve", "proj")
+    g = os.path.join(base, "ve", "state"); os.makedirs(g, exist_ok=True)
+    build(h, p, proj_enabled={"culvert@culvert": True}, registry="{ broken !!")
+    out, rc = run_status(h, p, g)
+    check("VE broken registry -> unavailable + ok", rc == 0 and "unavailable" in out)
+    out = vroom("vf", "9.9.9", proj_path_of_record="/elsewhere")
+    check("VF other-project record not selected", "no install record for this project" in out
+          and "Start a new Claude Code session" not in out)
+    # VG: local-scope record selection
+    h = os.path.join(base, "vg", "home"); p = os.path.join(base, "vg", "proj")
+    g = os.path.join(base, "vg", "state"); os.makedirs(g, exist_ok=True)
+    build(h, p, local_enabled={"culvert@culvert": True},
+          registry={"culvert@culvert": [{"scope": "local", "projectPath": p,
+                                         "installPath": PLUGIN, "version": real}]})
+    out, _ = run_status(h, p, g)
+    check("VG local scope record selected", f"Installed version : {real}" in out)
+
     print(f"\n{'FAIL ' + str(len(FAILS)) if FAILS else 'ALL PASS'}")
     sys.exit(1 if FAILS else 0)
 

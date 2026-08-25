@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.5 (unreleased)
+
+- `/culvert:status` now shows `Loaded version` (the plugin copy this session
+  actually runs) and `Installed version` (the record for this project) as
+  separate lines, and warns when a session is running a stale loaded copy —
+  observed in real use after updating the plugin mid-session. A newer loaded
+  copy than installed is reported plainly as a version mismatch, without
+  guessing the cause. Unparseable versions never crash the report.
+- The install record is selected only from enabled culvert entries whose
+  projectPath matches this project (or user scope); records of other projects
+  are never picked. If the plugin registry is missing or unreadable,
+  `Installed version : unavailable` is shown and the rest of status still runs.
+- Status remains read-only: no auto-update, no reload, no cache changes.
+  No changes to the classifier, routing, policy defaults, or the validator.
+
 ## 0.2.4 (unreleased)
 
 - `/culvert:status` now detects conflicting installs instead of only grepping
