@@ -202,5 +202,75 @@
       "expect": "allow",
       "note": "~700 chars opaque output - below the raised 1200 threshold"
     }
+  ],
+  "grep_fp_v030": [
+    {
+      "id": "GF1",
+      "cmd": "grep -rn pattern app.log README.md",
+      "expect": "allow",
+      "note": "explicit small real files only - not a recursive search"
+    },
+    {
+      "id": "GF2",
+      "cmd": "grep -r pattern",
+      "expect": "deny:recursive-search",
+      "note": "no target = whole cwd"
+    },
+    {
+      "id": "GF3",
+      "cmd": "grep -rn pattern .",
+      "expect": "deny:recursive-search",
+      "note": "explicit cwd recursion"
+    },
+    {
+      "id": "GF4",
+      "cmd": "grep -r pattern $TARGET",
+      "expect": "deny:recursive-search",
+      "note": "target not statically resolvable"
+    },
+    {
+      "id": "GF5",
+      "cmd": "grep -rn pattern app.log src",
+      "expect": "deny:recursive-search",
+      "note": "file+directory mix"
+    },
+    {
+      "id": "GF6",
+      "cmd": "grep -rn pattern f1.txt f2.txt f3.txt f4.txt f5.txt f6.txt",
+      "expect": "deny:recursive-search",
+      "note": "too many explicit files = fan-out"
+    },
+    {
+      "id": "GF7",
+      "cmd": "grep -rn pattern missing-file.txt",
+      "expect": "deny:recursive-search",
+      "note": "nonexistent target - stay conservative"
+    },
+    {
+      "id": "GF8",
+      "cmd": "grep -rn -e pattern app.log",
+      "expect": "deny:recursive-search",
+      "note": "-e/-f shift positionals - conservative deny"
+    }
+  ],
+  "inline_py_v030": [
+    {
+      "id": "IP1",
+      "cmd": "python3 -c 'print(open(\"big.txt\").read())'",
+      "expect": "deny:long-inline-python",
+      "note": "short string but unbounded file dump - must stay denied at any threshold"
+    },
+    {
+      "id": "IP2",
+      "cmd": "python3 -c 'import json; xs=[1,2,3,4,5]; total=sum(x*x for x in xs); mean=total/len(xs); print(json.dumps({\"total\": total, \"mean\": mean, \"count\": len(xs), \"maximum\": max(xs), \"minimum\": min(xs)}))'",
+      "expect": "allow",
+      "note": "~230 chars small computation - the reported FP class"
+    },
+    {
+      "id": "IP3",
+      "cmd": "python3 -c 'import json; data={\"key0\": 0, \"key1\": 1, \"key2\": 2, \"key3\": 3, \"key4\": 4, \"key5\": 5, \"key6\": 6, \"key7\": 7, \"key8\": 8, \"key9\": 9, \"key10\": 10, \"key11\": 11, \"key12\": 12, \"key13\": 13, \"key14\": 14, \"key15\": 15, \"key16\": 16, \"key17\": 17, \"key18\": 18, \"key19\": 19, \"key20\": 20, \"key21\": 21, \"key22\": 22, \"key23\": 23, \"key24\": 24, \"key25\": 25, \"key26\": 26, \"key27\": 27, \"key28\": 28, \"key29\": 29}; print(len(data))'",
+      "expect": "deny:long-inline-python",
+      "note": "over the raised threshold"
+    }
   ]
 }

@@ -44,6 +44,8 @@ def main():
     open(os.path.join(tmp, "src", "a.js"), "w").write("x")
     open(os.path.join(tmp, "README.md"), "w").write("hi")
     open(os.path.join(tmp, "app.log"), "w").write("l\n")
+    for i in range(1, 7):
+        open(os.path.join(tmp, f"f{i}.txt"), "w").write("x\n")
 
     tp = fp = fn = tn = fails = 0
     for group, lst in cases.items():
