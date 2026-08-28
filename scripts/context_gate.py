@@ -32,7 +32,7 @@ import shlex
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _culvert import is_context_worker, load_policy, log_event, rule_on
+from _culvert import is_context_worker, load_policy, log_event, rule_on, runtime_meta
 
 OVERRIDE_RE = re.compile(r'^\s*CULVERT_OVERRIDE=("([^"]+)"|\'([^\']+)\'|(\S+))\s+')
 
@@ -288,34 +288,35 @@ def main():
     tool = data.get("tool_name")
     tool_input = data.get("tool_input") or {}
     cwd = data.get("cwd") or os.getcwd()
+    meta = runtime_meta(data, policy)
 
     if tool == "Bash":
         cmd = tool_input.get("command") or ""
         m = OVERRIDE_RE.match(cmd)
         if m:
             reason = m.group(2) or m.group(3) or m.group(4) or ""
-            log_event(agent="main", tool=tool, decision="override",
+            log_event(**meta, agent="main", tool=tool, decision="override",
                       cmd_len=len(cmd), override_reason=reason[:120])
             return
         rule = classify_bash(cmd, policy, cwd)
         if rule:
-            log_event(agent="main", tool=tool, decision="deny", rule=rule, cmd_len=len(cmd))
+            log_event(**meta, agent="main", tool=tool, decision="deny", rule=rule, cmd_len=len(cmd))
             deny(rule)
             return
-        log_event(agent="main", tool=tool, decision="allow", cmd_len=len(cmd))
+        log_event(**meta, agent="main", tool=tool, decision="allow", cmd_len=len(cmd))
     elif tool == "Read":
         rule = classify_read(tool_input, policy, cwd)
         if rule:
-            log_event(agent="main", tool=tool, decision="deny", rule=rule)
+            log_event(**meta, agent="main", tool=tool, decision="deny", rule=rule)
             deny(rule)
             return
-        log_event(agent="main", tool=tool, decision="allow")
+        log_event(**meta, agent="main", tool=tool, decision="allow")
     elif tool == "Agent":
         # context-worker must run as a regular subagent — a `name` spawns a teammate
         if rule_on(policy, "worker_teammate_spawn") \
                 and is_context_worker(tool_input.get("subagent_type")) \
                 and tool_input.get("name"):
-            log_event(agent="main", tool=tool, decision="deny",
+            log_event(**meta, agent="main", tool=tool, decision="deny",
                       rule="worker-teammate-spawn")
             deny_reason(
                 "DELEGATE_SUBAGENT_REQUIRED:\n"

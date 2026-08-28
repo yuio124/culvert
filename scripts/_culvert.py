@@ -46,6 +46,44 @@ KNOWN_RULES = {
 
 PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+_VERSION_CACHE = None
+
+
+def plugin_version():
+    """Version of the plugin copy this hook actually runs from (loaded truth)."""
+    global _VERSION_CACHE
+    if _VERSION_CACHE is None:
+        try:
+            with open(os.path.join(PLUGIN_ROOT, ".claude-plugin", "plugin.json"),
+                      encoding="utf-8") as fh:
+                _VERSION_CACHE = json.load(fh).get("version", "?")
+        except Exception:
+            _VERSION_CACHE = "?"
+    return _VERSION_CACHE
+
+
+def policy_hash(policy):
+    """Identity of the effective (post-merge) policy, not of any file on disk."""
+    try:
+        blob = json.dumps(policy, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(blob.encode()).hexdigest()[:12]
+    except Exception:
+        return "?"
+
+
+def runtime_meta(payload, policy):
+    """Join/version fields for events.jsonl. All lookups fail-open: a CLI that
+    does not send a field simply yields None, which log_event drops."""
+    try:
+        meta = {k: payload.get(k) for k in
+                ("tool_use_id", "prompt_id", "session_id",
+                 "transcript_path", "permission_mode")}
+    except Exception:
+        meta = {}
+    meta["culvert_version"] = plugin_version()
+    meta["policy_hash"] = policy_hash(policy)
+    return meta
+
 
 def default_policy_path():
     return os.path.join(PLUGIN_ROOT, "config", "policy.json")

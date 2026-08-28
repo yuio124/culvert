@@ -12,7 +12,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _culvert import is_context_worker, load_policy, log_event
+from _culvert import is_context_worker, load_policy, log_event, runtime_meta
 
 STATUS_RE = re.compile(r"\bstatus:\s*(SUCCESS|PARTIAL|BLOCKED)\b")
 
@@ -40,25 +40,26 @@ def main():
     policy = load_policy()
     if not policy.get("enabled"):
         return
+    meta = runtime_meta(data, policy)
     agent_type = data.get("agent_type") or ""
     if not is_context_worker(agent_type):
         return  # do not interfere with other subagents
     msg = data.get("last_assistant_message")
     if msg is None:
-        log_event(agent=agent_type, tool="SubagentStop", decision="approve",
+        log_event(**meta, agent=agent_type, tool="SubagentStop", decision="approve",
                   rule="no-last-message")
         return
     v = violations(msg, policy)
     if not v:
-        log_event(agent=agent_type, tool="SubagentStop", decision="approve",
+        log_event(**meta, agent=agent_type, tool="SubagentStop", decision="approve",
                   result_bytes=len(msg.encode("utf-8")))
         return
     if data.get("stop_hook_active"):
         # already blocked once — avoid loops: pass, but record the violation
-        log_event(agent=agent_type, tool="SubagentStop", decision="approve",
+        log_event(**meta, agent=agent_type, tool="SubagentStop", decision="approve",
                   rule="loop-guard", violation="; ".join(v))
         return
-    log_event(agent=agent_type, tool="SubagentStop", decision="block",
+    log_event(**meta, agent=agent_type, tool="SubagentStop", decision="block",
               violation="; ".join(v))
     print(json.dumps({
         "decision": "block",

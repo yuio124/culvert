@@ -9,7 +9,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _culvert import load_policy, log_event
+from _culvert import load_policy, log_event, runtime_meta
 
 CONTEXT = """CULVERT ACTIVE (Context Unbounded-Load Validation, Execution Routing & Triage).
 You are the Primary coordinator: understand intent, decompose problems, judge,
@@ -26,10 +26,11 @@ def main():
     policy = load_policy()
     if not policy.get("enabled"):
         return
+    meta = runtime_meta(data, policy)
     if data.get("agent_id"):
         return  # do not inject into subagent session starts
     source = data.get("source") or ""
-    log_event(agent="main", tool="SessionStart", decision="inject", rule=source)
+    log_event(**meta, agent="main", tool="SessionStart", decision="inject", rule=source)
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
