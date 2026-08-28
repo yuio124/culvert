@@ -262,9 +262,9 @@
     },
     {
       "id": "IP2",
-      "cmd": "python3 -c 'import json; xs=[1,2,3,4,5]; total=sum(x*x for x in xs); mean=total/len(xs); print(json.dumps({\"total\": total, \"mean\": mean, \"count\": len(xs), \"maximum\": max(xs), \"minimum\": min(xs)}))'",
+      "cmd": "python3 -c 'import json, statistics; xs=[1,2,3,4,5,6,7,8,9,10]; total=sum(x*x for x in xs); mean=statistics.mean(xs); med=statistics.median(xs); print(json.dumps({\"total\": total, \"mean\": mean, \"median\": med, \"count\": len(xs), \"maximum\": max(xs), \"minimum\": min(xs), \"variance\": statistics.pvariance(xs)}))'",
       "expect": "allow",
-      "note": "~230 chars small computation - the reported FP class"
+      "note": "~330 chars small computation - inside the 200..400 band the raise is meant to free"
     },
     {
       "id": "IP3",
