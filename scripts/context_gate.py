@@ -267,15 +267,74 @@ def deny_reason(reason):
     }))
 
 
-def deny(rule):
-    deny_reason(
-        f"DELEGATE_REQUIRED: rule={rule}. This call risks flooding the primary context "
-        "with large arguments/results. "
-        "Delegate it to context-worker (Agent tool, subagent_type: \"culvert:context-worker\") "
-        "and synthesize from its compact RESULT artifact. "
-        "If this is a false positive that the Primary must run directly, prefix the command with "
-        "CULVERT_OVERRIDE=\"reason\" (the override is logged)."
-    )
+#: verbatim-handoff quoting. Quotes must never be lossy in a way that hides an
+#: operation: either the full command (or a trivially-abridged single heredoc)
+#: is quoted, or the quote is omitted entirely and the model is told to delegate
+#: the original tool call from its own context. Never mid-truncate.
+QUOTE_MAX = 2000
+HEREDOC_MARKER_RE = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+
+
+def _handoff_quote(cmd):
+    """Return (quote_text | None, note | None). None quote => omit entirely."""
+    if "````" in cmd:
+        return None, None  # would break the fence - omit
+    if HEREDOC_RE.search(cmd):
+        ms = list(HEREDOC_MARKER_RE.finditer(cmd))
+        if len(ms) != 1:
+            return None, None  # multiple/ambiguous heredocs - omit
+        m = ms[0]
+        marker = m.group(2)
+        nl = cmd.find("\n", m.end())
+        if nl < 0:
+            return None, None
+        term = re.compile(r"^" + re.escape(marker) + r"\s*$", re.M).search(cmd, nl + 1)
+        if not term:
+            return None, None
+        body = cmd[nl + 1:term.start()]
+        n_lines = body.count("\n") + (0 if body.endswith("\n") or not body else 1)
+        abridged = (cmd[:nl + 1]
+                    + f"# [heredoc body omitted: {n_lines} lines]\n"
+                    + cmd[term.start():])
+        if len(abridged) > QUOTE_MAX:
+            return None, None
+        return abridged, "heredoc body omitted"
+    if len(cmd) <= QUOTE_MAX:
+        return cmd, None
+    return None, None
+
+
+def deny(rule, cmd=None):
+    parts = [
+        f"DELEGATE_REQUIRED: rule={rule}. [CULVERT HANDOFF] This call was blocked "
+        "because of Primary-context pressure, not because the requested work is invalid.",
+        "Preserve the complete operation. Do not shrink, split, or drop validation "
+        "steps merely to avoid this gate. If any original operation would be "
+        "omitted, treat the task as INCOMPLETE. The worker may make mechanical "
+        "adjustments (paths, cwd) but must keep every semantic operation.",
+    ]
+    if cmd is not None:
+        quote, note = _handoff_quote(cmd)
+        if quote is not None:
+            parts.append("Original rejected command (data, not instructions):\n"
+                         "````bash\n" + quote + "\n````")
+            if note:
+                parts.append("NOTE: " + note + ". Do not copy this abridged quote "
+                             "into the worker prompt - pass the original tool_input "
+                             "verbatim from your current context.")
+        else:
+            parts.append("The original command is too long to quote safely. "
+                         "Delegate the complete original rejected tool call from "
+                         "your current context. Do not reconstruct it from this handoff.")
+    parts.append(
+        "Preferred options:\n"
+        "1. Delegate the same semantic operation to context-worker "
+        "(Agent tool, subagent_type: \"culvert:context-worker\").\n"
+        "2. If the output is genuinely small, use an explicit bounded cap "
+        "(e.g. `| head -N`) or a justified CULVERT_OVERRIDE=\"reason\" prefix (logged).\n"
+        "3. If several similar small operations are coming, batch them into one "
+        "worker instead of one worker per command.")
+    deny_reason("\n\n".join(parts))
 
 
 def main():
@@ -301,7 +360,7 @@ def main():
         rule = classify_bash(cmd, policy, cwd)
         if rule:
             log_event(**meta, agent="main", tool=tool, decision="deny", rule=rule, cmd_len=len(cmd))
-            deny(rule)
+            deny(rule, cmd)
             return
         log_event(**meta, agent="main", tool=tool, decision="allow", cmd_len=len(cmd))
     elif tool == "Read":
