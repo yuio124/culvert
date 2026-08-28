@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.3.0 (unreleased)
+
+Observability release. Success criterion: an incident where a CULVERT deny led
+the primary agent to rewrite, shrink, or drop part of the original work must be
+discoverable afterwards from events.jsonl plus the session transcript alone.
+
+- events.jsonl gains join/version metadata: `tool_use_id`, `prompt_id`,
+  `session_id`, `transcript_path`, `permission_mode`, `culvert_version` (read
+  from the loaded plugin copy itself), `policy_hash` (sha256 of the effective
+  merged policy, sort_keys). All fields fail-open; events stay content-free.
+- Verbatim handoff v2 deny message: quotes the rejected command inside a
+  4-backtick fence; a single trivially-parsed heredoc may have its body
+  abridged (marked, with an instruction not to copy the abridged quote into
+  the worker prompt); anything ambiguous or over-long omits the quote and
+  instructs delegating the original tool call verbatim — never mid-truncated.
+- FP corrections: `grep -r pattern file1 file2` over a few explicit, existing,
+  small files is no longer recursive-search (no-target, directory/glob/$VAR
+  targets, nonexistent paths, -e/-f option shifting, >5 files, or oversized
+  totals all keep the deny); inline-python threshold raised 200 -> 400 with a
+  new unbounded file-dump guard (`open(...).read` denies at any length).
+- New read-only offline auditor `tools/analyze_session.py`: joins events with
+  transcripts on tool_use_id, prints one human-reviewable packet per deny
+  (rejected call, next 3 tool calls, same-prompt events, worker delegation
+  prompt head), and always surfaces join failures. No automatic behavior
+  classification. Audit output can quote private command content — keep local.
+- No changes to routing, the RESULT validator, or the blocker mechanism.
+
 ## 0.2.5 (unreleased)
 
 - `/culvert:status` now shows `Loaded version` (the plugin copy this session
