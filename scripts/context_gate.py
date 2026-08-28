@@ -28,6 +28,7 @@ Script errors fail open (exit 0). Worker name matching: _culvert.is_context_work
 import json
 import os
 import re
+import shlex
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -38,6 +39,8 @@ OVERRIDE_RE = re.compile(r'^\s*CULVERT_OVERRIDE=("([^"]+)"|\'([^\']+)\'|(\S+))\s
 # 1. argument size
 HEREDOC_RE = re.compile(r"(?<!<)<<(?!<)-?\s*['\"]?[A-Za-z_]")
 INLINE_PY_RE = re.compile(r"\bpython3?\b[^\n|;&]{0,120}\s-c\b|\buv\s+run\b[^\n|;&]{0,120}\s-c\b")
+# inline python that dumps a file is unbounded output regardless of command length
+INLINE_DUMP_RE = re.compile(r"\bopen\s*\([^)]*\)\s*\.\s*read\b")
 
 # 2. test runners (Python + Node — the supported scope)
 TEST_RE = re.compile(
@@ -111,6 +114,63 @@ def _bounded(seg):
     return False
 
 
+#: options that consume the next token; presence of -e/-f shifts positionals -> conservative deny
+_GREP_OPT_WITH_ARG = {"-m", "-A", "-B", "-C", "--include", "--exclude", "--exclude-dir", "--color"}
+_GREP_PATTERN_OPTS = {"-e", "-f", "--regexp", "--file"}
+_GREP_MAX_FILES = 5
+
+
+def _grep_explicit_files(seg, policy, cwd):
+    """True iff a grep -r segment targets only a few explicit, existing, small files.
+
+    v0.3.0 FP fix: `grep -r pat file1 file2` is not a recursive search. Boundaries
+    stay conservative — any of the following keeps the deny: no targets (whole cwd),
+    a directory or glob or $VAR target, a nonexistent path, more than
+    _GREP_MAX_FILES files, total size over max_read_bytes, or -e/-f style options
+    that shift positional arguments.
+    """
+    try:
+        toks = shlex.split(seg)
+    except ValueError:
+        return False
+    idx = next((i for i, t in enumerate(toks)
+                if os.path.basename(t) in ("grep", "zgrep", "egrep", "fgrep")), None)
+    if idx is None:
+        return False
+    args = toks[idx + 1:]
+    if any(t in _GREP_PATTERN_OPTS for t in args):
+        return False
+    pos, skip = [], False
+    for t in args:
+        if skip:
+            skip = False
+            continue
+        if t == "--":
+            continue
+        if t.startswith("-") and t != "-":
+            if t in _GREP_OPT_WITH_ARG:
+                skip = True
+            continue
+        pos.append(t)
+    if len(pos) < 2:
+        return False  # pattern only -> whole-cwd recursion
+    targets = pos[1:]
+    if len(targets) > _GREP_MAX_FILES:
+        return False
+    total = 0
+    for t in targets:
+        if any(c in t for c in "*?[$"):
+            return False
+        p = t if os.path.isabs(t) else os.path.join(cwd, t)
+        if not os.path.isfile(p):
+            return False
+        try:
+            total += os.path.getsize(p)
+        except OSError:
+            return False
+    return total <= policy["max_read_bytes"]
+
+
 def _output_rule(seg, policy, cwd):
     """Output-size rule verdict for a single segment."""
     if rule_on(policy, "db_query"):
@@ -119,7 +179,9 @@ def _output_rule(seg, policy, cwd):
         if DB_FILE_RE.search(seg) and DB_QUERYISH_RE.search(seg):
             return "db-query"
     if rule_on(policy, "recursive_search"):
-        if GREP_R_RE.search(seg) or RG_RE.search(seg):
+        if GREP_R_RE.search(seg) and not _grep_explicit_files(seg, policy, cwd):
+            return "recursive-search"
+        if RG_RE.search(seg):
             return "recursive-search"
         m = FIND_RE.search(seg)
         if m and ("-exec" in seg or os.path.isdir(os.path.join(cwd, m.group(1)))):
@@ -145,7 +207,8 @@ def classify_bash(cmd, policy, cwd):
     if rule_on(policy, "heredoc") and HEREDOC_RE.search(cmd):
         return "heredoc"
     if rule_on(policy, "long_inline_python") and INLINE_PY_RE.search(cmd) \
-            and len(cmd) > policy["max_inline_code_length"]:
+            and (INLINE_DUMP_RE.search(cmd)
+                 or len(cmd) > policy["max_inline_code_length"]):
         return "long-inline-python"
     # 2. test runners — never exempted (conservative)
     if rule_on(policy, "test_run") and TEST_RE.search(cmd):

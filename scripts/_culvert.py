@@ -22,7 +22,7 @@ import datetime
 DEFAULT_POLICY = {
     "enabled": False,
     "max_command_length": 1200,
-    "max_inline_code_length": 200,
+    "max_inline_code_length": 400,
     "max_read_bytes": 204800,
     "max_result_bytes": 8192,
     "rules": {},
