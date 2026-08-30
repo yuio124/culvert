@@ -19,9 +19,23 @@ Treat the output as private data — keep it local, never publish it.
 """
 import json
 import os
+import re
 import sys
 
 NEXT_CALLS = 3
+DIFF_CALLS = 6          # rewrites considered for the identifier diff
+DIFF_MAX_REMOVED = 20
+DIFF_MAX_ADDED = 10
+#: common shell/python words excluded from the identifier diff (minimal, not a parser)
+DIFF_STOPWORDS = {
+    "python3", "python", "json", "print", "import", "open", "read", "head",
+    "echo", "for", "in", "do", "done", "cat", "load", "loads", "dumps", "item",
+    "items", "data", "else", "elif", "true", "false", "none", "self", "range",
+    "keys", "values", "sorted", "lines", "line", "file", "path", "with", "def",
+    "return", "get", "list", "dict", "join", "split", "write", "exit", "then",
+}
+_STR_LIT_RE = re.compile(r"'([^'\n]{2,48})'|\"([^\"\n]{2,48})\"")
+_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{3,}")
 PROMPT_QUOTE = 500
 INPUT_QUOTE = 160
 
@@ -66,6 +80,37 @@ def load_transcript(path):
                              "input": block.get("input") or {}})
     return {"uses": uses, "by_id": {u["id"]: u for u in uses},
             "models": sorted(models), "cli": sorted(cli)}
+
+
+def extract_tokens(text):
+    """Identifiers/short string literals for the disappearance diff.
+
+    Deliberately minimal: quoted literals (no spaces/slashes) and >=4-char
+    identifiers, minus a small stopword list. This is evidence display for a
+    human reader — NOT a semantic-equivalence judgement. Identifiers can
+    legitimately disappear in a normal rewrite.
+    """
+    toks = set()
+    for m in _STR_LIT_RE.finditer(text):
+        lit = m.group(1) or m.group(2)
+        if "/" in lit or " " in lit:
+            continue
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.\-]{3,}", lit):
+            toks.add(lit)
+    for m in _IDENT_RE.finditer(text):
+        toks.add(m.group(0))
+    return {t for t in toks if t.lower() not in DIFF_STOPWORDS and len(t) <= 40}
+
+
+def rewrite_text(tool_input):
+    """Text of a follow-up call relevant to the diff: Bash command, Write/Edit
+    content, or a delegation prompt."""
+    parts = []
+    for key in ("command", "content", "new_string", "prompt"):
+        v = tool_input.get(key)
+        if isinstance(v, str):
+            parts.append(v)
+    return "\n".join(parts)
 
 
 def brief(tool_input):
@@ -132,6 +177,25 @@ def main():
             for x in same:
                 print(f"  - {x.get('tool')} {x.get('decision')} rule={x.get('rule')} "
                       f"cmd_len={x.get('cmd_len')}")
+        denied_text = rewrite_text(use["input"]) or str(use["input"])
+        corpus = "\n".join(rewrite_text(u["input"])
+                            for u in t["uses"][use["i"] + 1: use["i"] + 1 + DIFF_CALLS])
+        if corpus.strip():
+            removed = sorted(extract_tokens(denied_text) - extract_tokens(corpus))
+            added = sorted(extract_tokens(corpus) - extract_tokens(denied_text))
+            if removed:
+                print(f"Removed identifiers/literals (vs next {DIFF_CALLS} calls — "
+                      "evidence only, not a verdict):")
+                for tok in removed[:DIFF_MAX_REMOVED]:
+                    print(f"  - {tok}")
+                if len(removed) > DIFF_MAX_REMOVED:
+                    print(f"  ... and {len(removed) - DIFF_MAX_REMOVED} more")
+            else:
+                print("Removed identifiers/literals: none")
+            if added:
+                shown = ", ".join(added[:DIFF_MAX_ADDED])
+                print(f"Added identifiers/literals (reference): {shown}"
+                      + (" ..." if len(added) > DIFF_MAX_ADDED else ""))
         delegation = next((u for u in t["uses"][use["i"] + 1:]
                            if "subagent_type" in u["input"]), None)
         if delegation:
