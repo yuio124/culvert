@@ -327,13 +327,21 @@ def deny(rule, cmd=None):
                          "Delegate the complete original rejected tool call from "
                          "your current context. Do not reconstruct it from this handoff.")
     parts.append(
-        "Preferred options:\n"
-        "1. Delegate the same semantic operation to context-worker "
-        "(Agent tool, subagent_type: \"culvert:context-worker\").\n"
-        "2. If the output is genuinely small, use an explicit bounded cap "
-        "(e.g. `| head -N`) or a justified CULVERT_OVERRIDE=\"reason\" prefix (logged).\n"
-        "3. If several similar small operations are coming, batch them into one "
-        "worker instead of one worker per command.")
+        "If your goal is to inspect file contents, the Read tool (with "
+        "limit/offset) is not gated by CULVERT.")
+    parts.append(
+        "Preferred options, in order:\n"
+        "1. Delegate the same semantic operation, unchanged, to context-worker "
+        "(Agent tool, subagent_type: \"culvert:context-worker\"). Default choice.\n"
+        "2. If the original operation is genuinely bounded and preserving it "
+        "matters, a justified CULVERT_OVERRIDE=\"reason\" prefix is acceptable "
+        "(logged).\n"
+        "3. Output-only cap (e.g. `| head -N`): bounding may reduce returned "
+        "output, but must not reduce the set of records, fields, checks, or "
+        "computations performed. Would the complete output fit under the cap? "
+        "If unsure, use option 1 or 2 instead.\n"
+        "4. Several similar small operations may share one worker — without "
+        "merging, dropping, or skipping any of them.")
     deny_reason("\n\n".join(parts))
 
 
