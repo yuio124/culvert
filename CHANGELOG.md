@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.3.1 (unreleased)
+
+Corrective patch after the first natural-workload audit. Adjusted CULVERT's
+DENY handoff after an observed case where the Primary narrowed the requested
+operation (13 metadata keys -> 5) while attempting to make execution bounded.
+One observed failure case; it partially falsified the assumption that a
+verbatim quote plus an explicit anti-shrink instruction preserves the
+operation. The blocker mechanism and the classifier are unchanged.
+
+- DENY handoff v3: escape valves reordered by semantic-preservation safety —
+  (0) a note that the Read tool (limit/offset) is not gated, for plain file
+  inspection; (1) context-worker delegation of the unchanged operation as the
+  default; (2) a justified CULVERT_OVERRIDE when the operation is genuinely
+  bounded and preserving it matters (no longer framed as a costly last
+  resort); (3) output-only caps, now defined explicitly: bounding may reduce
+  returned output but must not reduce the set of records, fields, checks, or
+  computations performed — with a self-check ("would the complete output fit
+  under the cap?"); (4) batching without merging or dropping operations.
+- Offline auditor: identifier/literal disappearance diff between a denied call
+  and its follow-up rewrites (Bash commands, Write/Edit content, delegation
+  prompts). Evidence display only — identifiers can legitimately disappear in
+  a normal rewrite; no automatic semantic-loss verdict.
+- Synthetic regression fixture reproducing the 13->5 narrowing shape
+  (including the Write-mediated rewrite) as a hard release gate.
+- long-inline-python is unchanged: the incident showed narrowing after the
+  deny, not that the deny itself was a false positive (the original command
+  never ran, so its output size is censored). Queued for replay/shadow audit.
+
 ## 0.3.0 (unreleased)
 
 Observability release. Success criterion: an incident where a CULVERT deny led

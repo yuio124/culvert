@@ -20,3 +20,11 @@ discoverable afterwards from events + transcript").
    Verify in an interactive multi-prompt session before leaning on it.
 5. **Shadow/replay audit** for counterfactual deny candidates (classifier audit
    only — not a router-readiness test).
+
+6. **Post-deny preservation tracking** (from the first natural-workload case):
+   once ~30 denies accumulate, human-judge each as preserved / damaged /
+   undecidable, and track override rate per session as a secondary signal.
+   No effect claims before that sample exists.
+7. **long-inline-python replay/shadow audit**: the observed narrowing incident
+   left the rule's own FP question censored (original command never executed).
+   Audit the rule's real output distribution before any relaxation.
